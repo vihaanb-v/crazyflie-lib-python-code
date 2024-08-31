@@ -22,24 +22,14 @@ def take_off_simple(scf):
         time.sleep(3)
         mc.stop()
 
-def square(scf):
+def traverse_square(scf):
     with MotionCommander(scf, default_height=DEFAULT_HEIGHT) as mc:
-        time.sleep(3)
-        mc.forward(2)
-        time.sleep(3)
-
-        '''
-        time.sleep(1)
-        mc.right(1)
-        mc.sleep(1)
-        mc.back(1)
-        mc.sleep(1)
-        mc.left(1)
-        mc.sleep(1)
-        '''
-
-        mc.stop()
-        
+        #Code using turns from bottom right corner of square
+        for i in range(1):
+            time.sleep(3)
+            mc.move_distance(2, 2, 0.0, velocity=1.5)
+            time.sleep(3)
+            mc.stop()
 
 def param_deck_flow(name, value_str):
     value = int(value_str)
@@ -63,5 +53,5 @@ if __name__ == '__main__':
             print('No flow deck detected!')
             sys.exit(1)
 
-        #square(scf)
         #take_off_simple(scf)
+        traverse_square(scf)
