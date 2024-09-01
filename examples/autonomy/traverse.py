@@ -29,6 +29,16 @@ def traverse_square(scf):
             time.sleep(3)
             mc.move_distance(2, 2, 0.0, velocity=1.5)
             time.sleep(3)
+            mc.turn_right(90)
+            mc.forward(2, velocity=1.5)
+            time.sleep(3)
+            mc.turn_right(90)
+            mc.move_distance(2, -2, 0.0, velocity=1.5)
+            time.sleep(3)
+            mc.turn_left(90)
+            mc.forward(2, velocity=1.5)
+            mc.turn_left(90)
+            time.sleep(3)
             mc.stop()
 
 def param_deck_flow(name, value_str):
