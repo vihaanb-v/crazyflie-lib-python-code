@@ -22,6 +22,15 @@ def take_off_simple(scf):
         time.sleep(3)
         mc.stop()
 
+def straight_line(scf):
+    with MotionCommander(scf, default_height=DEFAULT_HEIGHT) as mc:
+        #Code to fly 2 meters forward
+        for i in range(1):
+            time.sleep(3)
+            mc.forward(2, velocity=1.5)
+            time.sleep(3)
+            mc.stop()
+
 def square_turns(scf):
     with MotionCommander(scf, default_height=DEFAULT_HEIGHT) as mc:
         #Code using turns from bottom right corner of square
@@ -96,7 +105,7 @@ def param_deck_flow(name, value_str):
 if __name__ == '__main__':
     cflib.crtp.init_drivers()
 
-    with SyncCrazyflie(URI, cf=Crazyflie(rw_cache='./cache')) as scf:
+    with SyncCrazyflie(URI, cf=Crazyflie(rw_cache= './cache')) as scf:
 
         scf.cf.param.add_update_callback(group='deck', name='bcFlow2',
                                          cb=param_deck_flow)
@@ -107,7 +116,8 @@ if __name__ == '__main__':
             sys.exit(1)
 
         #take_off_simple(scf)
-        square_turns(scf)
+        straight_line(scf)
+        #square_turns(scf)
         #square_no_turns(scf)
         #square_turns_no_stops(scf)
         #square_no_turns_no_stops(scf)
