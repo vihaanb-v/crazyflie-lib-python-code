@@ -39,8 +39,7 @@ uri = uri_helper.uri_from_env(default='radio://0/80/2M/E7E7E7E7E7')
 # Only output errors from the logging framework
 logging.basicConfig(level=logging.ERROR)
 
-
-class LoggingExample:
+class Logging:
     """
     Simple logging example class that logs the Stabilizer from a supplied
     link uri and disconnects after 5s.
@@ -134,10 +133,11 @@ if __name__ == '__main__':
     # Initialize the low-level drivers
     cflib.crtp.init_drivers()
 
-    le = LoggingExample(uri)
+    le = Logging(uri)
 
     # The Crazyflie lib doesn't contain anything to keep the application alive,
     # so this is where your application should do something. In our case we
     # are just waiting until we are disconnected.
+
     while le.is_connected:
         time.sleep(1)

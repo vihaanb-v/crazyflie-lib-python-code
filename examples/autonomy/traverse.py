@@ -19,7 +19,7 @@ logging.basicConfig(level=logging.ERROR)
 
 def take_off_simple(scf):
     with MotionCommander(scf, default_height=DEFAULT_HEIGHT) as mc:
-        time.sleep(10)
+        time.sleep(3)
         mc.stop()
 
 def traverse_square(scf):
