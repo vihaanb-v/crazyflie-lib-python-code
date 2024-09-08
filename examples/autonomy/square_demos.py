@@ -26,21 +26,6 @@ logging.basicConfig(level=logging.ERROR)
 
 def take_off_simple(scf, lg_stab):
     with MotionCommander(scf, default_height=DEFAULT_HEIGHT) as mc:
-        '''
-        with SyncLogger(scf, lg_stab) as logger:
-            # Iterate the logger to get the values
-            count = 0
-            for log_entry in logger:
-                print(log_entry)
-                # Do useful stuff
-                count += 1
-                if (count > 15):
-                    # The logging will continue until you exit the loop
-                    break
-        
-        print('hi')
-        '''
-
         time.sleep(15)
         mc.stop()
 
@@ -244,11 +229,13 @@ if __name__ == '__main__':
             print('No flow deck detected!')
             sys.exit(1)
 
+        #Defining log variables
         lg_stab = LogConfig(name='Stabilizer', period_in_ms=1000)
         lg_stab.add_variable('stateEstimate.x', 'float')
         lg_stab.add_variable('stateEstimate.y', 'float')
         lg_stab.add_variable('stateEstimate.z', 'float')
 
+        #Conducting multi-threading of flight and logging.
         t1 = threading.Thread(target=take_off_simple, args=(scf, lg_stab))
         t2 = threading.Thread(target=drone_logging, args=(scf, lg_stab))
 
