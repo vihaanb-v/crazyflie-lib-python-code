@@ -25,18 +25,35 @@ deck_attached_event = Event()
 logging.basicConfig(level=logging.ERROR)
 
 def take_off_simple(scf, lg_stab):
+    print("Takeoff.")
+    
     with MotionCommander(scf, default_height=DEFAULT_HEIGHT) as mc:
-        time.sleep(15)
+        time.sleep(10)
         mc.stop()
 
-def straight_line(scf):
+    print("Touchdown.")
+
+def straight_line(scf, lg_stab, direction):
+    print("Takeoff.")
+
     with MotionCommander(scf, default_height=DEFAULT_HEIGHT) as mc:
         #Code to fly 2 meters forward
         for i in range(1):
             time.sleep(3)
-            mc.forward(2, velocity=1.5)
+
+            if direction == 'f':
+                mc.forward(2, velocity=1.5)
+            elif direction == 'b':
+                mc.back(2, velocity=1.5)
+            elif direction == 'r':
+                mc.right(2, velocity=1.5)
+            elif direction == 'l':
+                mc.left(2, velocity=1.5)
             time.sleep(3)
+
             mc.stop()
+
+    print("Touchdown.")
 
 def square_turns(scf):
     with MotionCommander(scf, default_height=DEFAULT_HEIGHT) as mc:
@@ -110,117 +127,26 @@ def param_deck_flow(name, value_str):
     else:
         print('Deck is NOT attached!')
 
+#Log position data of drone
 def drone_logging(scf, lg_stab):
     with SyncLogger(scf, lg_stab) as logger:
+            curr = time.time()
             # Iterate the logger to get the values
             count = 0
             for log_entry in logger:
-                print(log_entry)
+                print(log_entry[1]['stateEstimate.x'])
                 # Do useful stuff
                 count += 1
-                if (count > 15):
+                if (time.time() > curr + 15):
                     # The logging will continue until you exit the loop
                     break
 
-class Logging:
-    """
-    Simple logging example class that logs the Stabilizer from a supplied
-    link uri and disconnects after 5s.
-    """
-
-    def __init__(self, link_uri):
-        """ Initialize and run the example with the specified link_uri """
-
-        self._cf = Crazyflie(rw_cache='./cache')
-
-        # Connect some callbacks from the Crazyflie API
-        self._cf.connected.add_callback(self._connected)
-        self._cf.disconnected.add_callback(self._disconnected)
-        self._cf.connection_failed.add_callback(self._connection_failed)
-        self._cf.connection_lost.add_callback(self._connection_lost)
-
-        print('Connecting to %s' % link_uri)
-
-        # Try to connect to the Crazyflie
-        self._cf.open_link(link_uri)
-
-        # Variable used to keep main loop occupied until disconnect
-        self.is_connected = True
-
-    def _connected(self, link_uri):
-        """ This callback is called form the Crazyflie API when a Crazyflie
-        has been connected and the TOCs have been downloaded."""
-        print('Connected to %s' % link_uri)
-
-        # The definition of the logconfig can be made before connecting
-        self._lg_stab = LogConfig(name='Stabilizer', period_in_ms=100)
-        self._lg_stab.add_variable('stateEstimate.x', 'float')
-        self._lg_stab.add_variable('stateEstimate.y', 'float')
-        self._lg_stab.add_variable('stateEstimate.z', 'float')
-        #self._lg_stab.add_variable('stabilizer.roll', 'float')
-        #self._lg_stab.add_variable('stabilizer.pitch', 'float')
-        #self._lg_stab.add_variable('stabilizer.yaw', 'float')
-        # The fetch-as argument can be set to FP16 to save space in the log packet
-        #self._lg_stab.add_variable('pm.vbat', 'FP16')
-
-        # Adding the configuration cannot be done until a Crazyflie is
-        # connected, since we need to check that the variables we
-        # would like to log are in the TOC.
-        try:
-            self._cf.log.add_config(self._lg_stab)
-            # This callback will receive the data
-            self._lg_stab.data_received_cb.add_callback(self._stab_log_data)
-            # This callback will be called on errors
-            self._lg_stab.error_cb.add_callback(self._stab_log_error)
-            # Start the logging
-            self._lg_stab.start()
-        except KeyError as e:
-            print('Could not start log configuration,'
-                  '{} not found in TOC'.format(str(e)))
-        except AttributeError:
-            print('Could not add Stabilizer log config, bad configuration.')
-
-        # Start a timer to disconnect in 10s
-        t = Timer(2.5, self._cf.close_link)
-        t.start()
-
-    def _stab_log_error(self, logconf, msg):
-        """Callback from the log API when an error occurs"""
-        print('Error when logging %s: %s' % (logconf.name, msg))
-
-    def _stab_log_data(self, timestamp, data, logconf):
-        """Callback from a the log API when data arrives"""
-        print(f'[{timestamp}][{logconf.name}]: ', end='')
-        for name, value in data.items():
-            print(f'{name}: {value:3.3f} ', end='')
-        print()
-
-    def _connection_failed(self, link_uri, msg):
-        """Callback when connection initial connection fails (i.e no Crazyflie
-        at the specified address)"""
-        print('Connection to %s failed: %s' % (link_uri, msg))
-        self.is_connected = False
-
-    def _connection_lost(self, link_uri, msg):
-        """Callback when disconnected after a connection has been made (i.e
-        Crazyflie moves out of range)"""
-        print('Connection to %s lost: %s' % (link_uri, msg))
-
-    def _disconnected(self, link_uri):
-        """Callback when the Crazyflie is disconnected (called in all cases)"""
-        print('Disconnected from %s' % link_uri)
-        self.is_connected = False
-
 if __name__ == '__main__':
     cflib.crtp.init_drivers()
-
-    #le = Logging(URI)
-
-    #while le.is_connected:
-    #   time.sleep(1)
-
+    
     with SyncCrazyflie(URI, cf=Crazyflie(rw_cache= './cache')) as scf:
 
+        #Check if flow deck is attached
         scf.cf.param.add_update_callback(group='deck', name='bcFlow2',
                                          cb=param_deck_flow)
         time.sleep(1)
@@ -230,13 +156,16 @@ if __name__ == '__main__':
             sys.exit(1)
 
         #Defining log variables
-        lg_stab = LogConfig(name='Stabilizer', period_in_ms=1000)
+        lg_stab = LogConfig(name='Stabilizer', period_in_ms=100)
         lg_stab.add_variable('stateEstimate.x', 'float')
         lg_stab.add_variable('stateEstimate.y', 'float')
         lg_stab.add_variable('stateEstimate.z', 'float')
 
-        #Conducting multi-threading of flight and logging.
+        #drone_logging(scf, lg_stab)
+
+        #Conducting multi-threading of flight and logging
         t1 = threading.Thread(target=take_off_simple, args=(scf, lg_stab))
+        #t1 = threading.Thread(target=straight_line, args=(scf, lg_stab, 'f'))
         t2 = threading.Thread(target=drone_logging, args=(scf, lg_stab))
 
         t1.start()
@@ -246,15 +175,3 @@ if __name__ == '__main__':
         t2.join()
 
         print("Logging & Flight done!")
-
-        #take_off_simple(scf, lg_stab)
-        #straight_line(scf)
-        #square_turns(scf)
-        #square_no_turns(scf)
-        #square_turns_no_stops(scf)
-        #square_no_turns_no_stops(scf)
-
-        #le = Logging(URI)
-
-        #while le.is_connected:
-        #    time.sleep(1)
