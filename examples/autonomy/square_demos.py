@@ -19,7 +19,7 @@ import csv
 
 URI = uri_helper.uri_from_env(default='radio://0/80/2M/E7E7E7E7E7')
 
-DEFAULT_HEIGHT = 1
+DEFAULT_HEIGHT = 1.5
 
 deck_attached_event = Event()
 
@@ -155,8 +155,7 @@ def drone_logging(scf, lg_stab, mode):
                 # Iterate the logger to get the values
                 count = 0
                 for log_entry in logger:
-                    print("(" + log_entry[1]['stateEstimate.x'] + ", " + log_entry[1]['stateEstimate.y'] + ", " + log_entry[1]['stateEstimate.z'] + ")")
-                    # Do useful stuff
+                    print("(" + "Timestamp: " + str(log_entry[0]) + ", " + str(log_entry[1]['stateEstimate.x']) + ", " + str(log_entry[1]['stateEstimate.y']) + ", " + str(log_entry[1]['stateEstimate.z']) + ")")
                     count += 1
                     x_pos_total += log_entry[1]['stateEstimate.x']
                     y_pos_total += log_entry[1]['stateEstimate.y']
@@ -175,8 +174,8 @@ def drone_logging(scf, lg_stab, mode):
                     # Iterate the logger to get the values
                     count = 0
                     for log_entry in logger:
-                        print("(" + log_entry[1]['stateEstimate.x'] + ", " + log_entry[1]['stateEstimate.y'] + ", " + log_entry[1]['stateEstimate.z'] + ")")
-                        # Do useful stuff
+                        print("(" + "Timestamp: " + str(log_entry[0]) + ", " + str(log_entry[1]['stateEstimate.x']) + ", " + str(log_entry[1]['stateEstimate.y']) + ", " + str(log_entry[1]['stateEstimate.z']) + ")")
+                        
                         count += 1
                         z_pos_total += log_entry[1]['stateEstimate.z']
                         if (count > 10):
@@ -191,8 +190,8 @@ def drone_logging(scf, lg_stab, mode):
                     # Iterate the logger to get the values
                     count = 0
                     for log_entry in logger:
-                        print("(" + log_entry[1]['stateEstimate.x'] + ", " + log_entry[1]['stateEstimate.y'] + ", " + log_entry[1]['stateEstimate.z'] + ")")
-                        # Do useful stuff
+                        print("(" + "Timestamp: " + str(log_entry[0]) + ", " + str(log_entry[1]['stateEstimate.x']) + ", " + str(log_entry[1]['stateEstimate.y']) + ", " + str(log_entry[1]['stateEstimate.z']) + ")")
+                        
                         x_pos_total += log_entry[1]['stateEstimate.x']
                         y_pos_total += log_entry[1]['stateEstimate.y']
                         z_pos_total += log_entry[1]['stateEstimate.z']
@@ -202,9 +201,45 @@ def drone_logging(scf, lg_stab, mode):
         y_avg = y_pos_total/count
         z_avg = z_pos_total/count
 
-def csv_edit(filename, x, y, z):
-    with open(filename, 'r+w') as csvfile:
-        csvreader = csv.reader(csvfile)
+    elif mode == "entire_flight":
+        project_directory = os.path.split(os.getcwd())[0] + '/'
+        print(project_directory)
+        sys.path.append(project_directory)
+
+        csv_path = project_directory + r"in_place_flight" #r"examples/log_data/path_flight/forward"
+
+        full_csv_path = os.path.join(csv_path, "run1.csv")
+
+        first_time = True
+
+        with SyncLogger(scf, lg_stab) as logger:
+            initial_time = time.time() + 18
+            while time.time() < initial_time:
+                for log_entry in logger:
+                    print("(" + "Timestamp: " + str(log_entry[0]) + ", " + str(log_entry[1]['stateEstimate.x']) + ", " + str(log_entry[1]['stateEstimate.y']) + ", " + str(log_entry[1]['stateEstimate.z']) + ")")
+
+                    with open(full_csv_path, 'a', newline = '') as file:
+                        writer = csv.writer(file)
+
+                        if first_time == True:
+                            field = ['Timestamp',
+                            'X-Coordinate',
+                            'Y-Coordinate',
+                            'Z-Coordinate'
+                            ]
+                
+                            writer.writerow(field)
+
+                            first_time = False
+
+                        else:
+                            writer.writerow(
+                            [log_entry[0],
+                            log_entry[1]['stateEstimate.x'],
+                            log_entry[1]['stateEstimate.y'],
+                            log_entry[1]['stateEstimate.z']
+                            ])
+
 
 if __name__ == '__main__':
     cflib.crtp.init_drivers()
@@ -225,7 +260,20 @@ if __name__ == '__main__':
         lg_stab.add_variable('stateEstimate.x', 'float')
         lg_stab.add_variable('stateEstimate.y', 'float')
         lg_stab.add_variable('stateEstimate.z', 'float')
+
+        t1 = threading.Thread(target=take_off_simple, args=(scf, lg_stab))
+        #t1 = threading.Thread(target=straight_line, args=(scf, lg_stab, "f"))
+        t2 = threading.Thread(target=drone_logging, args=(scf, lg_stab, "entire_flight"))
         
+        t1.start()
+        t2.start()
+
+        t1.join()
+        t2.join()
+
+        print("Logging & flight completed.")
+
+        '''
         #CODE FOR IN-PLACE FLIGHT TESTING (UP DOWN)
 
         #Conduct intial logging while on ground when testing for in-place flight (Up Down)
@@ -254,6 +302,7 @@ if __name__ == '__main__':
         csv_edit("static_drone_drift.csv", x_avg, y_avg, z_avg)
 
         print("Logging & Flight done for in-place testing!")
+        '''
 
         '''
         #CODE FOR MOVING TESTS (UP FORWARD DOWN, UP BACK DOWN, UP RIGHT DOWN, UP LEFT DOWN)
@@ -282,3 +331,4 @@ if __name__ == '__main__':
 
         csv_edit("static_drone_drift.csv", x_avg, y_avg, z_avg)
         '''
+
