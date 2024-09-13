@@ -34,6 +34,7 @@ def take_off_simple(scf, lg_stab):
 
     print("Touchdown.")
 
+
 def straight_line(scf, lg_stab, direction):
     print("Takeoff.")
 
