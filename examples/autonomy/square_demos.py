@@ -202,20 +202,21 @@ def drone_logging(scf, lg_stab, mode):
         z_avg = z_pos_total/count
 
     elif mode == "entire_flight":
-        project_directory = os.path.split(os.getcwd())[0] + '/'
+        #Have to change your file path
+        project_directory = "/home/bitcraze/projects/crazyflie-lib-python-code/examples/log_data/in_place_flight/"
         print(project_directory)
-        sys.path.append(project_directory)
 
-        csv_path = project_directory + r"in_place_flight" #r"examples/log_data/path_flight/forward"
-
-        full_csv_path = os.path.join(csv_path, "run1.csv")
+        full_csv_path = os.path.join(project_directory, "run18.csv")
 
         first_time = True
 
         with SyncLogger(scf, lg_stab) as logger:
-            initial_time = time.time() + 18
-            while time.time() < initial_time:
-                for log_entry in logger:
+            end_time = time.time() + 35
+            time.sleep(5)
+
+            for log_entry in logger:
+                if time.time() < end_time:
+                    print("Time: {}, Initial Time: {}".format(time.time(), end_time))
                     print("(" + "Timestamp: " + str(log_entry[0]) + ", " + str(log_entry[1]['stateEstimate.x']) + ", " + str(log_entry[1]['stateEstimate.y']) + ", " + str(log_entry[1]['stateEstimate.z']) + ")")
 
                     with open(full_csv_path, 'a', newline = '') as file:
