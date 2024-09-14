@@ -20,6 +20,7 @@ import csv
 URI = uri_helper.uri_from_env(default='radio://0/80/2M/E7E7E7E7E7')
 
 DEFAULT_HEIGHT = 1.5
+ERROR_PARAMETER = 0.2
 
 deck_attached_event = Event()
 
@@ -153,17 +154,17 @@ def drone_logging(scf, lg_stab, mode):
 
     if mode == "stationary":
         with SyncLogger(scf, lg_stab) as logger:
-                # Iterate the logger to get the values
-                count = 0
-                for log_entry in logger:
-                    print("(" + "Timestamp: " + str(log_entry[0]) + ", " + str(log_entry[1]['stateEstimate.x']) + ", " + str(log_entry[1]['stateEstimate.y']) + ", " + str(log_entry[1]['stateEstimate.z']) + ")")
-                    count += 1
-                    x_pos_total += log_entry[1]['stateEstimate.x']
-                    y_pos_total += log_entry[1]['stateEstimate.y']
-                    z_pos_total += log_entry[1]['stateEstimate.z']
-                    if (count > 10):
-                        # The logging will continue until you exit the loop
-                        break
+            # Iterate the logger to get the values
+            count = 0
+            for log_entry in logger:
+                print("(" + "Timestamp: " + str(log_entry[0]) + ", " + str(log_entry[1]['stateEstimate.x']) + ", " + str(log_entry[1]['stateEstimate.y']) + ", " + str(log_entry[1]['stateEstimate.z']) + ")")
+                count += 1
+                x_pos_total += log_entry[1]['stateEstimate.x']
+                y_pos_total += log_entry[1]['stateEstimate.y']
+                z_pos_total += log_entry[1]['stateEstimate.z']
+                if (count > 10):
+                    # The logging will continue until you exit the loop
+                    break
 
         x_avg = x_pos_total/10
         y_avg = y_pos_total/10
@@ -171,17 +172,17 @@ def drone_logging(scf, lg_stab, mode):
 
     elif mode == "moving":
         with SyncLogger(scf, lg_stab) as logger:
-                while log_entry[1]['stateEstimate.z'] > 0.97:
-                    # Iterate the logger to get the values
-                    count = 0
-                    for log_entry in logger:
-                        print("(" + "Timestamp: " + str(log_entry[0]) + ", " + str(log_entry[1]['stateEstimate.x']) + ", " + str(log_entry[1]['stateEstimate.y']) + ", " + str(log_entry[1]['stateEstimate.z']) + ")")
-                        
-                        count += 1
-                        z_pos_total += log_entry[1]['stateEstimate.z']
-                        if (count > 10):
-                            # The logging will continue until you exit the loop
-                            break
+            while log_entry[1]['stateEstimate.z'] > 0.97:
+                # Iterate the logger to get the values
+                count = 0
+                for log_entry in logger:
+                    print("(" + "Timestamp: " + str(log_entry[0]) + ", " + str(log_entry[1]['stateEstimate.x']) + ", " + str(log_entry[1]['stateEstimate.y']) + ", " + str(log_entry[1]['stateEstimate.z']) + ")")
+                    
+                    count += 1
+                    z_pos_total += log_entry[1]['stateEstimate.z']
+                    if (count > 10):
+                        # The logging will continue until you exit the loop
+                        break
 
         z_avg = z_pos_total/10
 
