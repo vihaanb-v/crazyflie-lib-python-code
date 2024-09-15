@@ -2,31 +2,31 @@ import csv
 import pandas as pd
 
 filename = "static_drone_drift.csv"
-run_num = 1
+run_num = 12
 
-with open("/home/bitcraze/projects/crazyflie-lib-python-code/examples/log_data/net_drift.csv", 'a', newline = '') as file:
+with open("/home/bitcraze/projects/crazyflie-lib-python-code/examples/log_data/net_drift_logger.csv", 'a', newline = '') as file:
     writer = csv.writer(file)
 
     '''
     field = ['Timestamp_Init',
              'Timestamp_Final'
-            'X-Coordinate',
-            'Y-Coordinate',
-            'Z-Coordinate'
+            'X-Net',
+            'Y-Net',
+            'Z-Net'
             ]
     
     writer.writerow(field)
     '''
 
-    df = pd.read_csv("/home/bitcraze/projects/crazyflie-lib-python-code/examples/log_data/in_place_flight/run" + run_num + ".csv")
-    print(len(df))
+    df = pd.read_csv("/home/bitcraze/projects/crazyflie-lib-python-code/examples/log_data/in_place_flight/run" + str(run_num) + ".csv")
+    #print(len(df))
 
     timestamp_init = df['Timestamp'][0]
     x_init = df['X-Coordinate'][1]
     y_init = df['Y-Coordinate'][1]
     z_init = df['Z-Coordinate'][1]
 
-    timestamp_final = df['Timestamp'][0]
+    timestamp_final = df['Timestamp'][len(df) - 1]
     x_final = df['X-Coordinate'][len(df) - 1]
     y_final = df['Y-Coordinate'][len(df) - 1]
     z_final = df['Z-Coordinate'][len(df) - 1]

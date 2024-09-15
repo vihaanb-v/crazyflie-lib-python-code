@@ -188,16 +188,16 @@ def drone_logging(scf, lg_stab, mode):
 
     elif mode == "hover":
         with SyncLogger(scf, lg_stab) as logger:
-                while log_entry[1]['stateEstimate.z'] > 0.97:
-                    # Iterate the logger to get the values
-                    count = 0
-                    for log_entry in logger:
-                        print("(" + "Timestamp: " + str(log_entry[0]) + ", " + str(log_entry[1]['stateEstimate.x']) + ", " + str(log_entry[1]['stateEstimate.y']) + ", " + str(log_entry[1]['stateEstimate.z']) + ")")
-                        
-                        x_pos_total += log_entry[1]['stateEstimate.x']
-                        y_pos_total += log_entry[1]['stateEstimate.y']
-                        z_pos_total += log_entry[1]['stateEstimate.z']
-                        count += 1
+            while log_entry[1]['stateEstimate.z'] > 0.97:
+                # Iterate the logger to get the values
+                count = 0
+                for log_entry in logger:
+                    print("(" + "Timestamp: " + str(log_entry[0]) + ", " + str(log_entry[1]['stateEstimate.x']) + ", " + str(log_entry[1]['stateEstimate.y']) + ", " + str(log_entry[1]['stateEstimate.z']) + ")")
+                    
+                    x_pos_total += log_entry[1]['stateEstimate.x']
+                    y_pos_total += log_entry[1]['stateEstimate.y']
+                    z_pos_total += log_entry[1]['stateEstimate.z']
+                    count += 1
 
         x_avg = x_pos_total/count
         y_avg = y_pos_total/count
@@ -208,7 +208,7 @@ def drone_logging(scf, lg_stab, mode):
         project_directory = "/home/bitcraze/projects/crazyflie-lib-python-code/examples/log_data/in_place_flight/"
         print(project_directory)
 
-        full_csv_path = os.path.join(project_directory, "run18.csv")
+        full_csv_path = os.path.join(project_directory, "run13.csv")
 
         first_time = True
 
