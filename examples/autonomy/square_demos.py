@@ -36,27 +36,23 @@ def take_off_simple(scf, lg_stab):
     print("Touchdown.")
 
 
-def straight_line(scf, lg_stab, direction):
+def straight_line(scf, direction):
     print("Takeoff.")
 
     with MotionCommander(scf, default_height=DEFAULT_HEIGHT) as mc:
-        #Code to fly 2 meters in a specified direction
-        for i in range(1):
+        time.sleep(3)
 
-            time.sleep(3)
-
-            if direction == 'f':
-                mc.forward(1, velocity=1.5)
-            elif direction == 'b':
-                mc.back(1, velocity=1.5)
-            elif direction == 'r':
-                mc.right(1, velocity=1.5)
-            elif direction == 'l':
-                mc.left(1, velocity=1.5)
-
-            time.sleep(3)
-
-            mc.stop()
+        if direction == 'f':
+            mc.forward(1.5, velocity=1.5)
+        elif direction == 'b':
+            mc.back(1.5, velocity=1.5)
+        elif direction == 'r':
+            mc.right(1.5, velocity=1.5)
+        elif direction == 'l':
+            mc.left(1.5, velocity=1.5)
+            
+        time.sleep(3)
+        mc.stop()
 
     print("Touchdown.")
 
@@ -134,23 +130,6 @@ def param_deck_flow(name, value_str):
 
 #Log position data of drone
 def drone_logging(scf, lg_stab, mode):
-    global x_pos_total
-    global y_pos_total
-    global z_pos_total
-
-    global x_avg
-    global y_avg
-    global z_avg
-
-    #Setting default value of 0 for total of position variables
-    x_pos_total = 0
-    y_pos_total = 0
-    z_pos_total = 0
-
-    #Setting default value of 0 for averages of postion variables
-    x_avg = 0
-    y_avg = 0
-    z_avg = 0
 
     if mode == "stationary":
         with SyncLogger(scf, lg_stab) as logger:
@@ -166,10 +145,6 @@ def drone_logging(scf, lg_stab, mode):
                     # The logging will continue until you exit the loop
                     break
 
-        x_avg = x_pos_total/10
-        y_avg = y_pos_total/10
-        z_avg = z_pos_total/10
-
     elif mode == "moving":
         with SyncLogger(scf, lg_stab) as logger:
             while log_entry[1]['stateEstimate.z'] > 0.97:
@@ -184,8 +159,6 @@ def drone_logging(scf, lg_stab, mode):
                         # The logging will continue until you exit the loop
                         break
 
-        z_avg = z_pos_total/10
-
     elif mode == "hover":
         with SyncLogger(scf, lg_stab) as logger:
             while log_entry[1]['stateEstimate.z'] > 0.97:
@@ -199,16 +172,12 @@ def drone_logging(scf, lg_stab, mode):
                     z_pos_total += log_entry[1]['stateEstimate.z']
                     count += 1
 
-        x_avg = x_pos_total/count
-        y_avg = y_pos_total/count
-        z_avg = z_pos_total/count
-
     elif mode == "entire_flight":
         #Have to change your file path
-        project_directory = "/home/bitcraze/projects/crazyflie-lib-python-code/examples/log_data/in_place_flight/"
+        project_directory = "/home/bitcraze/projects/crazyflie-lib-python-code/examples/log_data/path_flight/forward/"
         print(project_directory)
 
-        full_csv_path = os.path.join(project_directory, "run35.csv")
+        full_csv_path = os.path.join(project_directory, "run1.csv")
 
         first_time = True
 
@@ -259,15 +228,15 @@ if __name__ == '__main__':
             sys.exit(1)
 
         #Defining log variables
-        lg_stab = LogConfig(name='Stabilizer', period_in_ms=100)
+        lg_stab = LogConfig(name='Position', period_in_ms=100)
         lg_stab.add_variable('stateEstimate.x', 'float')
         lg_stab.add_variable('stateEstimate.y', 'float')
         lg_stab.add_variable('stateEstimate.z', 'float')
 
-        t1 = threading.Thread(target=take_off_simple, args=(scf, lg_stab))
-        #t1 = threading.Thread(target=straight_line, args=(scf, lg_stab, "f"))
+        #t1 = threading.Thread(target=take_off_simple, args=(scf, lg_stab))
+        t1 = threading.Thread(target=straight_line, args=(scf, 'f'))
         t2 = threading.Thread(target=drone_logging, args=(scf, lg_stab, "entire_flight"))
-        
+
         t1.start()
         t2.start()
 
@@ -275,63 +244,3 @@ if __name__ == '__main__':
         t2.join()
 
         print("Logging & flight completed.")
-
-        '''
-        #CODE FOR IN-PLACE FLIGHT TESTING (UP DOWN)
-
-        #Conduct intial logging while on ground when testing for in-place flight (Up Down)
-        drone_logging(scf, lg_stab, "stationary")
-        
-        #Calling csv function
-        csv_edit("static_drone_drift.csv", x_avg, y_avg, z_avg)
-        
-        #Conduct threading that calculates the drift while the drone is hovering
-        t1 = threading.Thread(target=take_off_simple, args=(scf, lg_stab))
-        t2 = threading.Thread(target=drone_logging, args=(scf, lg_stab, "hover"))
-        
-        t1.start()
-        t2.start()
-
-        t1.join()
-        t2.join()
-
-        #Calling csv function
-        csv_edit("static_drone_drift.csv", x_avg, y_avg, z_avg)
-        
-        #Conduct ending logging while on ground after landing for in-place flight (Up Down)
-        drone_logging(scf, lg_stab, "stationary")
-
-        #Calling csv function
-        csv_edit("static_drone_drift.csv", x_avg, y_avg, z_avg)
-
-        print("Logging & Flight done for in-place testing!")
-        '''
-
-        '''
-        #CODE FOR MOVING TESTS (UP FORWARD DOWN, UP BACK DOWN, UP RIGHT DOWN, UP LEFT DOWN)
-
-        #Conduct intial logging while on ground when testing for moving flight (Up Forward Down, Up Back down, Up Right Down, Up Left Down)
-        drone_logging(scf, lg_stab, "stationary")
-
-        csv_edit("static_drone_drift.csv", x_avg, y_avg, z_avg)
-
-        #Conduct threading that calculates the drift while the drone is moving air
-        t1 = threading.Thread(target=straight_line, args=(scf, lg_stab, "f"))
-        t2 = threading.Thread(target=drone_logging, args=(scf, lg_stab, "moving"))
-        
-        t1.start()
-        t2.start()
-
-        t1.join()
-        t2.join()
-
-        csv_edit("static_drone_drift.csv", x_avg, y_avg, z_avg)
-
-        #Conduct ending logging while on ground when testing for moving flight (Up Forward Down, Up Back down, Up Right Down, Up Left Down)
-        drone_logging(scf, lg_stab, "stationary")
-
-        print("Logging & Flight done for moving testing!")
-
-        csv_edit("static_drone_drift.csv", x_avg, y_avg, z_avg)
-        '''
-

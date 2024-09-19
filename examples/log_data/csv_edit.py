@@ -2,7 +2,7 @@ import csv
 import pandas as pd
 
 filename = "static_drone_drift.csv"
-run_num = 12
+run_num = 40
 
 with open("/home/bitcraze/projects/crazyflie-lib-python-code/examples/log_data/net_drift_logger.csv", 'a', newline = '') as file:
     writer = csv.writer(file)
