@@ -49,8 +49,8 @@ plt.legend(loc = "upper left")
 
 plt.title("Net Drone Drift for In Place Flight")
 
-plt.xlabel("Horizontal (X) Drift")
-plt.ylabel("Vertical (Y) Drift")
+plt.xlabel("Horizontal (X) Drift (Inches)")
+plt.ylabel("Vertical (Y) Drift (Inches)")
 
 plt.grid()
 

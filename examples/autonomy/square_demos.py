@@ -180,10 +180,15 @@ def drone_logging(scf, lg_stab, mode):
         full_csv_path = os.path.join(project_directory, "run1.csv")
 
         first_time = True
+        inFlight = False
 
         with SyncLogger(scf, lg_stab) as logger:
-            end_time = time.time() + 35
-            time.sleep(5)
+            if inFlight == True:
+                end_time = time.time() + 35
+                time.sleep(5)
+            else:
+                end_time = time.time() + 29
+                time.sleep(5)
 
             for log_entry in logger:
                 if time.time() < end_time:
