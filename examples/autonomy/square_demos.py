@@ -36,7 +36,7 @@ def take_off_simple(scf, lg_stab):
     print("Touchdown.")
 
 
-def straight_line(scf, direction):
+def straight_line(scf, lg_stab, direction):
     print("Takeoff.")
 
     with MotionCommander(scf, default_height=DEFAULT_HEIGHT) as mc:
@@ -177,7 +177,7 @@ def drone_logging(scf, lg_stab, mode):
         project_directory = "/home/bitcraze/projects/crazyflie-lib-python-code/examples/log_data/path_flight/forward/"
         print(project_directory)
 
-        full_csv_path = os.path.join(project_directory, "run1.csv")
+        full_csv_path = os.path.join(project_directory, "run5.csv")
 
         first_time = True
         inFlight = False
@@ -238,8 +238,11 @@ if __name__ == '__main__':
         lg_stab.add_variable('stateEstimate.y', 'float')
         lg_stab.add_variable('stateEstimate.z', 'float')
 
+        #take_off_simple(scf, lg_stab)
+        #straight_line(scf, lg_stab, 'f')
+
         #t1 = threading.Thread(target=take_off_simple, args=(scf, lg_stab))
-        t1 = threading.Thread(target=straight_line, args=(scf, 'f'))
+        t1 = threading.Thread(target=straight_line, args=(scf, lg_stab, 'f'))
         t2 = threading.Thread(target=drone_logging, args=(scf, lg_stab, "entire_flight"))
 
         t1.start()

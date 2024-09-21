@@ -42,8 +42,8 @@ plt.scatter(x1, y1, label="Logger Recorded Drift")
 plt.scatter(x2, y2, label="Manually Recorded Drift")
 
 #Plotting average points
-plt.scatter(x_sum_logger/len(x1), y_sum_logger/len(x1), label="Average Point for Logger Data")
-plt.scatter(x_sum_manual/len(x2), y_sum_manual/len(x2), label="Average Point for Manual Data")
+plt.scatter(x_sum_logger/len(x1), y_sum_logger/len(x1), label="Average Point for Logger Data", marker='X', s=90)
+plt.scatter(x_sum_manual/len(x2), y_sum_manual/len(x2), label="Average Point for Manual Data", marker='X', s=90)
 
 plt.legend(loc = "upper left")
 
