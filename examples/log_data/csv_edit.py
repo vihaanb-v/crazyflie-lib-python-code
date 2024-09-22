@@ -1,15 +1,15 @@
 import csv
 import pandas as pd
 
-filename = "static_drone_drift.csv"
-run_num = 40
+run_num = 10
 
-with open("/home/bitcraze/projects/crazyflie-lib-python-code/examples/log_data/net_drift_logger.csv", 'a', newline = '') as file:
+with open("/home/bitcraze/projects/crazyflie-lib-python-code/examples/log_data/2.1+_flight/in_place_flight/net_drift_logger.csv", 'a', newline = '') as file:
     writer = csv.writer(file)
 
     '''
-    field = ['Timestamp_Init',
-             'Timestamp_Final'
+    field = ['Run',
+            'Timestamp_Init',
+             'Timestamp_Final',
             'X-Net',
             'Y-Net',
             'Z-Net'
@@ -18,7 +18,7 @@ with open("/home/bitcraze/projects/crazyflie-lib-python-code/examples/log_data/n
     writer.writerow(field)
     '''
 
-    df = pd.read_csv("/home/bitcraze/projects/crazyflie-lib-python-code/examples/log_data/in_place_flight/run" + str(run_num) + ".csv")
+    df = pd.read_csv("/home/bitcraze/projects/crazyflie-lib-python-code/examples/log_data/2.1+_flight/in_place_flight/run" + str(run_num) + ".csv")
     #print(len(df))
 
     timestamp_init = df['Timestamp'][0]

@@ -174,10 +174,11 @@ def drone_logging(scf, lg_stab, mode):
 
     elif mode == "entire_flight":
         #Have to change your file path
-        project_directory = "/home/bitcraze/projects/crazyflie-lib-python-code/examples/log_data/path_flight/forward/"
+        #project_directory = "/home/bitcraze/projects/crazyflie-lib-python-code/examples/log_data/2.1_flight/path_flight/forward/"
+        project_directory = "/home/bitcraze/projects/crazyflie-lib-python-code/examples/log_data/2.1+_flight/in_place_flight"
         print(project_directory)
 
-        full_csv_path = os.path.join(project_directory, "run5.csv")
+        full_csv_path = os.path.join(project_directory, "run10.csv")
 
         first_time = True
         inFlight = False
@@ -241,8 +242,8 @@ if __name__ == '__main__':
         #take_off_simple(scf, lg_stab)
         #straight_line(scf, lg_stab, 'f')
 
-        #t1 = threading.Thread(target=take_off_simple, args=(scf, lg_stab))
-        t1 = threading.Thread(target=straight_line, args=(scf, lg_stab, 'f'))
+        t1 = threading.Thread(target=take_off_simple, args=(scf, lg_stab))
+        #t1 = threading.Thread(target=straight_line, args=(scf, lg_stab, 'f'))
         t2 = threading.Thread(target=drone_logging, args=(scf, lg_stab, "entire_flight"))
 
         t1.start()

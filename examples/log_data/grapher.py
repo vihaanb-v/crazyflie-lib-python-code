@@ -2,9 +2,9 @@ import csv
 import pandas as pd
 import matplotlib.pyplot as plt
 
-df1 = pd.read_csv("/home/bitcraze/projects/crazyflie-lib-python-code/examples/log_data/net_drift_logger.csv")
+df1 = pd.read_csv("/home/bitcraze/projects/crazyflie-lib-python-code/examples/log_data/2.1+_flight/in_place_flight/net_drift_logger.csv")
 
-df2 = pd.read_csv("/home/bitcraze/projects/crazyflie-lib-python-code/examples/log_data/net_drift_manual.csv")
+df2 = pd.read_csv("/home/bitcraze/projects/crazyflie-lib-python-code/examples/log_data/2.1+_flight/in_place_flight/net_drift_manual.csv")
 
 x1 = []
 y1 = []
