@@ -178,7 +178,7 @@ def drone_logging(scf, lg_stab, mode):
         project_directory = "/home/bitcraze/projects/crazyflie-lib-python-code/examples/log_data/2.1+_flight/in_place_flight"
         print(project_directory)
 
-        full_csv_path = os.path.join(project_directory, "run20.csv")
+        full_csv_path = os.path.join(project_directory, "run30.csv")
 
         first_time = True
         inFlight = False
