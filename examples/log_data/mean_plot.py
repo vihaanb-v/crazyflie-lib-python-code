@@ -33,8 +33,8 @@ for i in range(len(df1)):
         if i == 25 or i == 35:
             continue
 
-    x1.append(100*df1["X-Net"][i])
-    y1.append(100*df1["Y-Net"][i])
+    x1.append(100*df1["Y-Net"][i]*(-1))
+    y1.append(100*df1["X-Net"][i])
     x2.append(2.54*df2["X-Net"][i])
     y2.append(2.54*df2["Y-Net"][i])
 
@@ -74,13 +74,14 @@ if __name__ == "__main__":
     #print(mean_y_logger)
 
     #Line Plot of Net Drift values for Logger Data
-    plt.scatter(count_list, mean_x_logger, label="Average X-Drift Logger")
-    plt.scatter(count_list, mean_y_logger, label="Average Y-Drift Logger")
+    #plt.scatter(count_list, mean_x_logger, label="Average X-Drift Logger")
+    #plt.scatter(count_list, mean_y_logger, label="Average Y-Drift Logger")
     
     #Line Plot of Net Drift values for Manual Data 
-    #plt.scatter(count_list, mean_x_manual, label="Average X-Drift Manual")
-    #plt.scatter(count_list, mean_y_manual, label="Average Y-Drift Manual")
+    plt.scatter(count_list, mean_x_manual, label="Average X-Drift Manual")
+    plt.scatter(count_list, mean_y_manual, label="Average Y-Drift Manual")
 
+    '''
     for i in range(len(count_list) - 1):
         x = [count_list[i], count_list[i+1]]
         y = [mean_x_logger[i], mean_x_logger[i+1]]
@@ -89,8 +90,18 @@ if __name__ == "__main__":
         x = [count_list[i], count_list[i+1]]
         y = [mean_y_logger[i], mean_y_logger[i+1]]
         plt.plot(x, y, color="black", linewidth=1, alpha=0.5)
+    '''
 
-    plt.legend(loc = "center right")#bbox_to_anchor=(1.05, 1), loc = "upper left")
+    for i in range(len(count_list) - 1):
+        x = [count_list[i], count_list[i+1]]
+        y = [mean_x_manual[i], mean_x_manual[i+1]]
+        plt.plot(x, y, color="black", linewidth=1, alpha=0.5)
+
+        x = [count_list[i], count_list[i+1]]
+        y = [mean_y_manual[i], mean_y_manual[i+1]]
+        plt.plot(x, y, color="black", linewidth=1, alpha=0.5)
+
+    plt.legend(loc = "upper right")#bbox_to_anchor=(1.05, 1), loc = "upper left")
 
     plt.title("Net Drone Drift Averages for In Place Flight")
 

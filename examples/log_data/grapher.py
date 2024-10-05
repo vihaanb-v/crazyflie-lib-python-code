@@ -4,11 +4,11 @@ import matplotlib.pyplot as plt
 
 crazyflie2_1 = True
 
-df1 = pd.read_csv("/home/bitcraze/projects/crazyflie-lib-python-code/examples/log_data/2.1_flight/in_place_flight/net_drift_logger.csv")
-#df1 = pd.read_csv("/home/bitcraze/projects/crazyflie-lib-python-code/examples/log_data/2.1+_flight/in_place_flight/net_drift_logger.csv")
+#df1 = pd.read_csv("/home/bitcraze/projects/crazyflie-lib-python-code/examples/log_data/2.1_flight/in_place_flight/net_drift_logger.csv")
+df1 = pd.read_csv("/home/bitcraze/projects/crazyflie-lib-python-code/examples/log_data/2.1+_flight/in_place_flight/net_drift_logger.csv")
 
-df2 = pd.read_csv("/home/bitcraze/projects/crazyflie-lib-python-code/examples/log_data/2.1_flight/in_place_flight/net_drift_manual.csv")
-#df2 = pd.read_csv("/home/bitcraze/projects/crazyflie-lib-python-code/examples/log_data/2.1+_flight/in_place_flight/net_drift_manual.csv")
+#df2 = pd.read_csv("/home/bitcraze/projects/crazyflie-lib-python-code/examples/log_data/2.1_flight/in_place_flight/net_drift_manual.csv")
+df2 = pd.read_csv("/home/bitcraze/projects/crazyflie-lib-python-code/examples/log_data/2.1+_flight/in_place_flight/net_drift_manual.csv")
 
 x1 = []
 y1 = []
@@ -27,8 +27,8 @@ for i in range(len(df1)):
         if i == 25 or i == 35:
             continue
 
-    x1.append(100*df1["X-Net"][i])
-    y1.append(100*df1["Y-Net"][i])
+    x1.append(100*df1["Y-Net"][i]*(-1))
+    y1.append(100*df1["X-Net"][i])
     x2.append(2.54*df2["X-Net"][i])
     y2.append(2.54*df2["Y-Net"][i])
 
