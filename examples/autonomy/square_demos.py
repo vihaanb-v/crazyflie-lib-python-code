@@ -36,6 +36,50 @@ def take_off_simple(scf, lg_stab):
     print("Touchdown.")
 
 
+def fly_left(scf, lg_stab):
+    print("Takeoff.")
+    
+    with MotionCommander(scf, default_height=DEFAULT_HEIGHT) as mc:
+        time.sleep(2)
+        mc.left(1.5, velocity=1.5)
+        time.sleep(2)
+        mc.stop()
+
+    print("Touchdown.")
+
+def fly_right(scf, lg_stab):
+    print("Takeoff.")
+    
+    with MotionCommander(scf, default_height=DEFAULT_HEIGHT) as mc:
+        time.sleep(2)
+        mc.right(1.5, velocity=1.5)
+        time.sleep(2)
+        mc.stop()
+
+    print("Touchdown.")
+
+def fly_forward(scf, lg_stab):
+    print("Takeoff.")
+    
+    with MotionCommander(scf, default_height=DEFAULT_HEIGHT) as mc:
+        time.sleep(2)
+        mc.forward(1.5, velocity=1.5)
+        time.sleep(2)
+        mc.stop()
+
+    print("Touchdown.")
+
+def fly_backward(scf, lg_stab):
+    print("Takeoff.")
+    
+    with MotionCommander(scf, default_height=DEFAULT_HEIGHT) as mc:
+        time.sleep(2)
+        mc.back(1.5, velocity=1.5)
+        time.sleep(2)
+        mc.stop()
+
+    print("Touchdown.")
+
 def straight_line(scf, lg_stab, direction):
     print("Takeoff.")
 
@@ -178,7 +222,7 @@ def drone_logging(scf, lg_stab, mode):
         project_directory = "/home/bitcraze/projects/crazyflie-lib-python-code/examples/log_data/2.1+_flight/in_place_flight"
         print(project_directory)
 
-        full_csv_path = os.path.join(project_directory, "run30.csv")
+        full_csv_path = os.path.join(project_directory, "run31.csv")
 
         first_time = True
         inFlight = False
@@ -242,7 +286,8 @@ if __name__ == '__main__':
         #take_off_simple(scf, lg_stab)
         #straight_line(scf, lg_stab, 'f')
 
-        t1 = threading.Thread(target=take_off_simple, args=(scf, lg_stab))
+        #t1 = threading.Thread(target=take_off_simple, args=(scf, lg_stab))
+        t1 = threading.Thread(target=fly_right, args=(scf, lg_stab))
         #t1 = threading.Thread(target=straight_line, args=(scf, lg_stab, 'f'))
         t2 = threading.Thread(target=drone_logging, args=(scf, lg_stab, "entire_flight"))
 
