@@ -221,7 +221,7 @@ def drone_logging(scf, lg_stab, mode):
         #project_directory = "/home/bitcraze/projects/crazyflie-lib-python-code/examples/log_data/2.1_flight/in_place_flight"
         
         #project_directory = "/home/bitcraze/projects/crazyflie-lib-python-code/examples/log_data/2.1+_flight/in_place_flight"
-        project_directory = "/home/bitcraze/projects/crazyflie-lib-python-code/examples/log_data/2.1+_flight/path_flight/right"
+        project_directory = "/home/bitcraze/projects/crazyflie-lib-python-code/examples/log_data/2.1+_flight/path_flight/left"
 
         print(project_directory)
 
@@ -286,7 +286,7 @@ if __name__ == '__main__':
 
         #t1 = threading.Thread(target=take_off_simple, args=(scf, lg_stab))
         #t1 = threading.Thread(target=fly_right, args=(scf, lg_stab))
-        t1 = threading.Thread(target=straight_line, args=(scf, lg_stab, 'r'))
+        t1 = threading.Thread(target=straight_line, args=(scf, lg_stab, 'l'))
         t2 = threading.Thread(target=drone_logging, args=(scf, lg_stab, "entire_flight"))
 
         t1.start()
