@@ -221,22 +221,17 @@ def drone_logging(scf, lg_stab, mode):
         #project_directory = "/home/bitcraze/projects/crazyflie-lib-python-code/examples/log_data/2.1_flight/in_place_flight"
         
         #project_directory = "/home/bitcraze/projects/crazyflie-lib-python-code/examples/log_data/2.1+_flight/in_place_flight"
-        project_directory = "/home/bitcraze/projects/crazyflie-lib-python-code/examples/log_data/2.1+_flight/path_flight/forward"
+        project_directory = "/home/bitcraze/projects/crazyflie-lib-python-code/examples/log_data/2.1+_flight/path_flight/backward"
 
         print(project_directory)
 
-        full_csv_path = os.path.join(project_directory, "run23.csv")
+        full_csv_path = os.path.join(project_directory, "run15.csv")
 
         first_time = True
-        inFlight = False
 
         with SyncLogger(scf, lg_stab) as logger:
-            if inFlight == True:
-                end_time = time.time() + 35
-                time.sleep(5)
-            else:
-                end_time = time.time() + 29
-                time.sleep(5)
+            end_time = time.time() + 35
+            time.sleep(5)
 
             for log_entry in logger:
                 if time.time() < end_time:
@@ -291,7 +286,7 @@ if __name__ == '__main__':
 
         #t1 = threading.Thread(target=take_off_simple, args=(scf, lg_stab))
         #t1 = threading.Thread(target=fly_right, args=(scf, lg_stab))
-        t1 = threading.Thread(target=straight_line, args=(scf, lg_stab, 'f'))
+        t1 = threading.Thread(target=straight_line, args=(scf, lg_stab, 'b'))
         t2 = threading.Thread(target=drone_logging, args=(scf, lg_stab, "entire_flight"))
 
         t1.start()
