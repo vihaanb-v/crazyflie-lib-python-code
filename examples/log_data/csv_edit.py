@@ -3,7 +3,7 @@ import pandas as pd
 
 run_num = 25
 
-with open("/home/bitcraze/projects/crazyflie-lib-python-code/examples/log_data/2.1+_flight/path_flight/forward/net_drift_logger.csv", 'a', newline = '') as file:
+with open("/home/bitcraze/projects/crazyflie-lib-python-code/examples/log_data/2.1+_flight/path_flight/right/net_drift_logger.csv", 'a', newline = '') as file:
     writer = csv.writer(file)
 
     '''
@@ -18,7 +18,7 @@ with open("/home/bitcraze/projects/crazyflie-lib-python-code/examples/log_data/2
     writer.writerow(field)
     '''
 
-    df = pd.read_csv("/home/bitcraze/projects/crazyflie-lib-python-code/examples/log_data/2.1+_flight/path_flight/forward/run" + str(run_num) + ".csv")
+    df = pd.read_csv("/home/bitcraze/projects/crazyflie-lib-python-code/examples/log_data/2.1+_flight/path_flight/right/run" + str(run_num) + ".csv")
     #print(len(df))
 
     timestamp_init = df['Timestamp'][0]

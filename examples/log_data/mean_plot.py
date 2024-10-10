@@ -4,21 +4,21 @@ import matplotlib.pyplot as plt
 
 crazyflie2_1 = True
 
-#df1 = pd.read_csv("/home/bitcraze/projects/crazyflie-lib-python-code/examples/log_data/2.1_flight/in_place_flight/net_drift_logger.csv")
+df1 = pd.read_csv("/home/bitcraze/projects/crazyflie-lib-python-code/examples/log_data/2.1_flight/in_place_flight/net_drift_logger.csv")
 
 #df1 = pd.read_csv("/home/bitcraze/projects/crazyflie-lib-python-code/examples/log_data/2.1+_flight/in_place_flight/net_drift_logger.csv")
 #df1 = pd.read_csv("/home/bitcraze/projects/crazyflie-lib-python-code/examples/log_data/2.1+_flight/path_flight/forward/net_drift_logger.csv")
 #df1 = pd.read_csv("/home/bitcraze/projects/crazyflie-lib-python-code/examples/log_data/2.1+_flight/path_flight/backward/net_drift_logger.csv")
 #df1 = pd.read_csv("/home/bitcraze/projects/crazyflie-lib-python-code/examples/log_data/2.1+_flight/path_flight/right/net_drift_logger.csv")
-df1 = pd.read_csv("/home/bitcraze/projects/crazyflie-lib-python-code/examples/log_data/2.1+_flight/path_flight/left/net_drift_logger.csv")
+#df1 = pd.read_csv("/home/bitcraze/projects/crazyflie-lib-python-code/examples/log_data/2.1+_flight/path_flight/left/net_drift_logger.csv")
 
-#df2 = pd.read_csv("/home/bitcraze/projects/crazyflie-lib-python-code/examples/log_data/2.1_flight/in_place_flight/net_drift_manual.csv")
+df2 = pd.read_csv("/home/bitcraze/projects/crazyflie-lib-python-code/examples/log_data/2.1_flight/in_place_flight/net_drift_manual.csv")
 
 #df2 = pd.read_csv("/home/bitcraze/projects/crazyflie-lib-python-code/examples/log_data/2.1+_flight/in_place_flight/net_drift_manual.csv")
 #df2 = pd.read_csv("/home/bitcraze/projects/crazyflie-lib-python-code/examples/log_data/2.1+_flight/path_flight/forward/net_drift_manual.csv")
 #df2 = pd.read_csv("/home/bitcraze/projects/crazyflie-lib-python-code/examples/log_data/2.1+_flight/path_flight/backward/net_drift_manual.csv")
 #df2 = pd.read_csv("/home/bitcraze/projects/crazyflie-lib-python-code/examples/log_data/2.1+_flight/path_flight/right/net_drift_manual.csv")
-df2 = pd.read_csv("/home/bitcraze/projects/crazyflie-lib-python-code/examples/log_data/2.1+_flight/path_flight/left/net_drift_manual.csv")
+#df2 = pd.read_csv("/home/bitcraze/projects/crazyflie-lib-python-code/examples/log_data/2.1+_flight/path_flight/left/net_drift_manual.csv")
 
 #Logger Data
 x1 = []
@@ -111,9 +111,9 @@ if __name__ == "__main__":
         y = [mean_y_manual[i], mean_y_manual[i+1]]
         plt.plot(x, y, color="black", linewidth=1, alpha=0.5)
 
-    plt.legend(loc = "upper right")#bbox_to_anchor=(1.05, 1), loc = "upper left")
+    plt.legend(loc = "center right")#bbox_to_anchor=(1.05, 1), loc = "upper left")
 
-    plt.title("Net Drone Drift Averages for Flight")
+    plt.title("Net Drone Drift Running Averages for Crazyflie 2.1 In Place Flight")
 
     plt.xlabel("Number of Tests Conducted (#)")
     plt.ylabel("Net Drift (Centimeters)")
