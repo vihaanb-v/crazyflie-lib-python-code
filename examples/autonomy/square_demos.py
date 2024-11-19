@@ -220,14 +220,14 @@ def drone_logging(scf, lg_stab, mode):
         #project_directory = "/home/bitcraze/projects/crazyflie-lib-python-code/examples/log_data/2.1_flight/path_flight/forward/"
         #project_directory = "/home/bitcraze/projects/crazyflie-lib-python-code/examples/log_data/2.1_flight/in_place_flight"
         
-        project_directory = "/home/bitcraze/projects/crazyflie-lib-python-code/examples/log_data/2.1_flight_new_props/in_place_flight"
+        project_directory = "/home/bitcraze/projects/crazyflie-lib-python-code/examples/log_data/2.1+_flight/patterned_floor/in_place_flight"
 
         #project_directory = "/home/bitcraze/projects/crazyflie-lib-python-code/examples/log_data/2.1+_flight/in_place_flight"
         #project_directory = "/home/bitcraze/projects/crazyflie-lib-python-code/examples/log_data/2.1+_flight/path_flight/left"
 
         print(project_directory)
 
-        full_csv_path = os.path.join(project_directory, "run25.csv")
+        full_csv_path = os.path.join(project_directory, "run10.csv")
 
         first_time = True
 
