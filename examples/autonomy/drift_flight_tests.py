@@ -217,17 +217,28 @@ def drone_logging(scf, lg_stab, mode):
 
     elif mode == "entire_flight":
         #Have to change your file path
+        
+        #Directional drift test Crazyflie 2.1
         #project_directory = "/home/bitcraze/projects/crazyflie-lib-python-code/examples/log_data/2.1_flight/path_flight/forward/"
+        
+        #In place drift test Crazyflie 2.1
         #project_directory = "/home/bitcraze/projects/crazyflie-lib-python-code/examples/log_data/2.1_flight/in_place_flight"
         
-        project_directory = "/home/bitcraze/projects/crazyflie-lib-python-code/examples/log_data/2.1+_flight/patterned_floor/in_place_flight"
+        #Patterned floor test Crazyflie 2.1+
+        #project_directory = "/home/bitcraze/projects/crazyflie-lib-python-code/examples/log_data/2.1+_flight/patterned_floor/in_place_flight"
 
+        #In place drift test Crazyflie 2.1+
         #project_directory = "/home/bitcraze/projects/crazyflie-lib-python-code/examples/log_data/2.1+_flight/in_place_flight"
+       
+        #Directional drift test Crazyflie 2.1+
         #project_directory = "/home/bitcraze/projects/crazyflie-lib-python-code/examples/log_data/2.1+_flight/path_flight/left"
+
+        #Testing folder for logging
+        project_directory = "/home/bitcraze/projects/crazyflie-lib-python-code/examples/log_data/tests"
 
         print(project_directory)
 
-        full_csv_path = os.path.join(project_directory, "run10.csv")
+        full_csv_path = os.path.join(project_directory, "run1.csv")
 
         first_time = True
 
