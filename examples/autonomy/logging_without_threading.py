@@ -26,7 +26,7 @@ deck_attached_event = Event()
 
 logging.basicConfig(level=logging.ERROR)
 
-def take_off_simple(scf, lg_stab):
+def take_off_simple(scf):
     print("Takeoff.")
     
     with MotionCommander(scf, default_height=DEFAULT_HEIGHT) as mc:
@@ -35,7 +35,7 @@ def take_off_simple(scf, lg_stab):
 
     print("Touchdown.")
 
-def fly_left(scf, lg_stab):
+def fly_left(scf):
     print("Takeoff.")
     
     with MotionCommander(scf, default_height=DEFAULT_HEIGHT) as mc:
@@ -46,7 +46,7 @@ def fly_left(scf, lg_stab):
 
     print("Touchdown.")
 
-def fly_right(scf, lg_stab):
+def fly_right(scf):
     print("Takeoff.")
     
     with MotionCommander(scf, default_height=DEFAULT_HEIGHT) as mc:
@@ -57,7 +57,7 @@ def fly_right(scf, lg_stab):
 
     print("Touchdown.")
 
-def fly_forward(scf, lg_stab):
+def fly_forward(scf):
     print("Takeoff.")
     
     with MotionCommander(scf, default_height=DEFAULT_HEIGHT) as mc:
@@ -68,7 +68,7 @@ def fly_forward(scf, lg_stab):
 
     print("Touchdown.")
 
-def fly_backward(scf, lg_stab):
+def fly_backward(scf):
     print("Takeoff.")
     
     with MotionCommander(scf, default_height=DEFAULT_HEIGHT) as mc:
@@ -79,7 +79,7 @@ def fly_backward(scf, lg_stab):
 
     print("Touchdown.")
 
-def straight_line(scf, lg_stab, direction):
+def straight_line(scf, direction):
     print("Takeoff.")
 
     with MotionCommander(scf, default_height=DEFAULT_HEIGHT) as mc:
@@ -172,10 +172,10 @@ def param_deck_flow(name, value_str):
         print('Deck is NOT attached!')
 
 #Log position data of drone
-def drone_logging(scf, lg_stab, mode):
+def drone_logging(scf, log_config, mode):
 
     if mode == "stationary":
-        with SyncLogger(scf, lg_stab) as logger:
+        with SyncLogger(scf, log_config) as logger:
             # Iterate the logger to get the values
             count = 0
             for log_entry in logger:
@@ -189,7 +189,7 @@ def drone_logging(scf, lg_stab, mode):
                     break
 
     elif mode == "moving":
-        with SyncLogger(scf, lg_stab) as logger:
+        with SyncLogger(scf, log_config) as logger:
             while log_entry[1]['stateEstimate.z'] > 0.97:
                 # Iterate the logger to get the values
                 count = 0
@@ -203,7 +203,7 @@ def drone_logging(scf, lg_stab, mode):
                         break
 
     elif mode == "hover":
-        with SyncLogger(scf, lg_stab) as logger:
+        with SyncLogger(scf, log_config) as logger:
             while log_entry[1]['stateEstimate.z'] > 0.97:
                 # Iterate the logger to get the values
                 count = 0
@@ -233,16 +233,13 @@ def drone_logging(scf, lg_stab, mode):
         #Directional drift test Crazyflie 2.1+
         #project_directory = "/home/bitcraze/projects/crazyflie-lib-python-code/examples/log_data/2.1+_flight/path_flight/left"
 
-        #Testing folder for logging
-        project_directory = "/home/bitcraze/projects/crazyflie-lib-python-code/examples/log_data/tests"
-
         print(project_directory)
 
         full_csv_path = os.path.join(project_directory, "run1.csv")
 
         first_time = True
 
-        with SyncLogger(scf, lg_stab) as logger:
+        with SyncLogger(scf, log_config) as logger:
             end_time = time.time() + 35
             time.sleep(5)
 
@@ -274,37 +271,61 @@ def drone_logging(scf, lg_stab, mode):
                             ])
 
 
+def log_data_callback(timestamp, data, logconf):
+        with open(project_directory + '/run1.csv', 'a', newline = '') as file:
+            writer = csv.writer(file)
+            writer.writerow(
+                [timestamp,
+                data['stateEstimate.x'],
+                data['stateEstimate.y'],
+                data['stateEstimate.z']
+                ]
+            )
+
 if __name__ == '__main__':
     cflib.crtp.init_drivers()
+
+    #Testing folder for logging
+    project_directory = "/home/bitcraze/projects/crazyflie-lib-python-code/examples/log_data/tests"
+
+    #Defining log variables
+    log_config = LogConfig(name='StateEstimate', period_in_ms=100)
+    log_config.add_variable('stateEstimate.x', 'float')
+    log_config.add_variable('stateEstimate.y', 'float')
+    log_config.add_variable('stateEstimate.z', 'float')
+
+    #take_off_simple(scf, log_config)
+    #straight_line(scf, log_config, 'f')
 
     with SyncCrazyflie(URI, cf=Crazyflie(rw_cache= './cache')) as scf:
 
         #Check if flow deck is attached
+        '''
         scf.cf.param.add_update_callback(group='deck', name='bcFlow2', cb=param_deck_flow)
         time.sleep(1)
 
         if not deck_attached_event.wait(timeout=1):
             print('No flow deck detected!')
             sys.exit(1)
+        '''
 
-        #Defining log variables
-        lg_stab = LogConfig(name='Position', period_in_ms=100)
-        lg_stab.add_variable('stateEstimate.x', 'float')
-        lg_stab.add_variable('stateEstimate.y', 'float')
-        lg_stab.add_variable('stateEstimate.z', 'float')
+        with open(project_directory + '/run1.csv', 'a', newline = '') as file:
+            writer = csv.writer(file)
 
-        #take_off_simple(scf, lg_stab)
-        #straight_line(scf, lg_stab, 'f')
+            field = ['Timestamp',
+            'X-Coordinate',
+            'Y-Coordinate',
+            'Z-Coordinate'
+            ]
 
-        t1 = threading.Thread(target=take_off_simple, args=(scf, lg_stab))
-        #t1 = threading.Thread(target=fly_right, args=(scf, lg_stab))
-        #t1 = threading.Thread(target=straight_line, args=(scf, lg_stab, 'l'))
-        t2 = threading.Thread(target=drone_logging, args=(scf, lg_stab, "entire_flight"))
+            writer.writerow(field)
 
-        t1.start()
-        t2.start()
+        log_config.data_received_cb.add_callback(lambda ts, data, lc: log_data_callback(ts, data, lc))
 
-        t1.join()
-        t2.join()
+        log_config.start()
 
+        take_off_simple(scf)
+
+        log_config.end()
+        
         print("Logging & flight completed.")
