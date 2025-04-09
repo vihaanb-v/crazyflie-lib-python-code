@@ -1,7 +1,9 @@
 import ctypes
 
+import time
+
 #Edit to access your personally built RTLola Monitors
-drift_lib = ctypes.CDLL('/home/bitcraze/projects/rtlola/rtlola_spec/in_place_monitor/libmonitor.so')
+drift_lib = ctypes.CDLL("/home/bitcraze/projects/rtlola/rtlola_spec/in_place_monitor/libmonitor.so")
 
 # Define the structure for Memory_x
 class Memory_x(ctypes.Structure):
@@ -76,7 +78,7 @@ class Memory(ctypes.Structure):
                 ("time", ctypes.c_double)]
 
 # Define the structure for Event
-class Event(ctypes.Structure):
+class RTLola_Event(ctypes.Structure):
     _fields_ = [("has_x", ctypes.c_bool),
                 ("x", ctypes.c_double),
                 ("has_y", ctypes.c_bool),
@@ -93,9 +95,9 @@ class InternalEvent(ctypes.Structure):
 # Define the structure for Verdict
 class Verdict(ctypes.Structure):
     _fields_ = [("has_trigger_0", ctypes.c_bool),
-                ("trigger_0", ctypes.POINTER(ctypes.c_char_p)),
+                ("trigger_0", ctypes.POINTER(ctypes.c_char)),
                 ("has_trigger_1", ctypes.c_bool),
-                ("trigger_1", ctypes.POINTER(ctypes.c_char_p)),
+                ("trigger_1", ctypes.POINTER(ctypes.c_char)),
                 ("time", ctypes.c_double)]
 
 # Function to initialize StreamMemory
@@ -107,7 +109,7 @@ drift_lib.memory_init.argtypes = [ctypes.POINTER(Memory), ctypes.c_double]
 drift_lib.memory_init.restype = None  # void function
 
 # Function to accept an event (returns a Verdict)
-drift_lib.accept_event.argtypes = [ctypes.POINTER(Memory), Event, ctypes.c_double]
+drift_lib.accept_event.argtypes = [ctypes.POINTER(Memory), RTLola_Event, ctypes.c_double]
 drift_lib.accept_event.restype = Verdict
 
 # Additional functions for the various structures such as Memory_x, Memory_y, etc.
@@ -175,37 +177,11 @@ stream_memory_instance = StreamMemory(
 # Instantiate Memory with the stream_memory_instance and a start time
 memory_instance = Memory(
     stream_memory=stream_memory_instance,
-    time=0.0  # you can replace this with any starting time value
-)
-
-# Instantiate Event and InternalEvent
-event_instance = Event(
-    has_x=True,
-    x=1.0,  # example x value
-    has_y=True,
-    y=2.0  # example y value
-)
-
-internal_event_instance = InternalEvent(
-    has_x=True,
-    x=1.0,  # example x value
-    has_y=True,
-    y=2.0,  # example y value
-    time=0.0  # example time value
-)
-
-# Instantiate Verdict
-verdict_instance = Verdict(
-    has_trigger_0=True,
-    trigger_0=None,  # Set this to the appropriate value if needed
-    has_trigger_1=True,
-    trigger_1=None,  # Set this to the appropriate value if needed
-    time=0.0  # example time value
+    time=time.time()  # you can replace this with any starting time value
 )
 
 import logging
 import sys
-import time
 import os
 import csv
 import threading
@@ -230,6 +206,40 @@ ERROR_PARAMETER = 0.2
 deck_attached_event = Event()
 
 logging.basicConfig(level=logging.ERROR)
+
+def send_state_to_monitor(x_val, y_val, timestamp):
+    # Create a new Event with x and y values
+    event = RTLola_Event(
+        has_x=True,
+        x=x_val,
+        has_y=True,
+        y=y_val
+    )
+
+    print("hi-initial")
+
+    # Send the event to the monitor and receive a verdict
+    verdict = drift_lib.accept_event(ctypes.byref(memory_instance), event, timestamp)
+
+    print("hi-verdict")
+
+    if verdict.has_trigger_0:
+        # Check if the pointer is not null before trying to decode
+        print("hi-trigger-1-internal-1")
+        if verdict.trigger_0:
+            print("hi-trigger-1-internal-2")
+            print(f"[RTLola] Trigger 0: {verdict.trigger_0.decode('utf-8')} @ {verdict.time:.3f}")
+
+    print("hi-trigger-1")
+
+    if verdict.has_trigger_1:
+        # Check if the pointer is not null before trying to decode
+        print("hi-trigger-2-internal-1")
+        if verdict.trigger_1:
+            print("hi-trigger-2-internal-2")
+            print(f"[RTLola] Trigger 1: {verdict.trigger_1.decode('utf-8')} @ {verdict.time:.3f}")
+
+    print("hi-trigger-2")
 
 def take_off_simple(scf, lg_stab):
     print("Takeoff.")
@@ -443,18 +453,20 @@ def drone_logging(scf, lg_stab, mode):
 
         print(project_directory)
 
-        full_csv_path = os.path.join(project_directory, "run2.csv")
+        full_csv_path = os.path.join(project_directory, "run6.csv")
 
         first_time = True
 
         with SyncLogger(scf, lg_stab) as logger:
             end_time = time.time() + 35
-            time.sleep(5)
+            time.sleep(2)
 
             for log_entry in logger:
                 if time.time() < end_time:
                     print("Time: {}, Initial Time: {}".format(time.time(), end_time))
                     print("(" + "Timestamp: " + str(log_entry[0]) + ", " + str(log_entry[1]['stateEstimate.x']) + ", " + str(log_entry[1]['stateEstimate.y']) + ", " + str(log_entry[1]['stateEstimate.z']) + ")")
+
+                    send_state_to_monitor(log_entry[1]['stateEstimate.x'], log_entry[1]['stateEstimate.y'], log_entry[0])
 
                     with open(full_csv_path, 'a', newline = '') as file:
                         writer = csv.writer(file)
@@ -481,6 +493,11 @@ def drone_logging(scf, lg_stab, mode):
 
 if __name__ == '__main__':
     cflib.crtp.init_drivers()
+
+    # Initialize stream memory and memory
+    drift_lib.init_stream_memory(ctypes.byref(stream_memory_instance))
+    start_time = time.time()  # or use time.time() if timestamp is relative to wall clock
+    drift_lib.memory_init(ctypes.byref(memory_instance), start_time)
 
     with SyncCrazyflie(URI, cf=Crazyflie(rw_cache= './cache')) as scf:
 
