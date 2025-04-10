@@ -211,46 +211,20 @@ deck_attached_event = Event()
 
 logging.basicConfig(level=logging.ERROR)
 
-def send_state_to_monitor(x_val, y_val, timestamp):
+def send_state_to_monitor(x_val, x0, y_val, y0, timestamp):
     # Create a new Event with x and y values
+    print("Python X: {}, Python Y: {}".format(x_val, y_val))
+
     event = RTLola_Event(
         has_x=True,
-        x=x_val,
+        x=x_val-x0,
         has_y=True,
-        y=y_val
+        y=y_val-y0
     )
-
-    print("hi-initial")
 
     # Send the event to the monitor and receive a verdict
     verdict = drift_lib.accept_event(ctypes.byref(memory_instance), event, timestamp)
     drift_lib.display_verdict(verdict)
-
-    print("hi-verdict")
-    
-    '''
-    print("Trigger 0: {}".format(verdict.has_trigger_0))
-
-    if verdict.has_trigger_0:
-        # Check if the pointer is not null before trying to decode
-        print("hi-trigger-1-internal-1")
-        if verdict.trigger_0:
-            print("hi-trigger-1-internal-2")
-            print(f"[RTLola] Trigger 0: {verdict.trigger_0.decode('utf-8')} @ {verdict.time:.3f}")
-
-    print("hi-trigger-1")
-
-    print("Trigger 1: {}".format(verdict.has_trigger_1))
-
-    if verdict.has_trigger_1:
-        # Check if the pointer is not null before trying to decode
-        print("hi-trigger-2-internal-1")
-        if verdict.trigger_1:
-            print("hi-trigger-2-internal-2")
-            print(f"[RTLola] Trigger 1: {verdict.trigger_1.decode('utf-8')} @ {verdict.time:.3f}")
-
-    print("hi-trigger-2")
-    '''
 
 def take_off_simple(scf, lg_stab):
     print("Takeoff.")
@@ -397,110 +371,70 @@ def param_deck_flow(name, value_str):
     else:
         print('Deck is NOT attached!')
 
+def write_csv_log(full_csv_path, logging_dict):
+    with open(full_csv_path, 'a', newline = '') as file:
+        writer = csv.writer(file)
+
+        field = ['Timestamp',
+        'X-Coordinate',
+        'Y-Coordinate'
+        'Z-Coordinate'
+        ]
+
+        writer.writerow(field)
+
+        for k, v in logging_dict.items():
+            writer.writerow([k, v[0], v[1], v[2]])
+
 #Log position data of drone
-def drone_logging(scf, lg_stab, mode):
+def drone_logging(scf, lg_stab):
+    #Have to change your file path
+    
+    #Directional drift test Crazyflie 2.1
+    #project_directory = "/home/bitcraze/projects/crazyflie-lib-python-code/examples/log_data/2.1_flight/path_flight/forward/"
+    
+    #In place drift test Crazyflie 2.1
+    #project_directory = "/home/bitcraze/projects/crazyflie-lib-python-code/examples/log_data/2.1_flight/in_place_flight"
+    
+    #Patterned floor test Crazyflie 2.1+
+    #project_directory = "/home/bitcraze/projects/crazyflie-lib-python-code/examples/log_data/2.1+_flight/patterned_floor/in_place_flight"
 
-    if mode == "stationary":
-        with SyncLogger(scf, lg_stab) as logger:
-            # Iterate the logger to get the values
-            count = 0
-            for log_entry in logger:
+
+    #In place drift test Crazyflie 2.1+
+    #project_directory = "/home/bitcraze/projects/crazyflie-lib-python-code/examples/log_data/2.1+_flight/in_place_flight"
+    
+    #Directional drift test Crazyflie 2.1+
+    #project_directory = "/home/bitcraze/projects/crazyflie-lib-python-code/examples/log_data/2.1+_flight/path_flight/left"
+
+    #Testing folder for logging
+    project_directory = "/home/bitcraze/projects/crazyflie-lib-python-code/examples/log_data/tests"
+
+    print(project_directory)
+
+    full_csv_path = os.path.join(project_directory, "run11.csv")
+
+    first_time = True
+
+    with SyncLogger(scf, lg_stab) as logger:
+        end_time = time.time() + 35
+        time.sleep(2)
+
+        logging_dict = {}
+
+        for log_entry in logger:
+            if time.time() < end_time:
+                print("Time: {}, Initial Time: {}".format(time.time(), end_time))
                 print("(" + "Timestamp: " + str(log_entry[0]) + ", " + str(log_entry[1]['stateEstimate.x']) + ", " + str(log_entry[1]['stateEstimate.y']) + ", " + str(log_entry[1]['stateEstimate.z']) + ")")
-                count += 1
-                x_pos_total += log_entry[1]['stateEstimate.x']
-                y_pos_total += log_entry[1]['stateEstimate.y']
-                z_pos_total += log_entry[1]['stateEstimate.z']
-                if (count > 10):
-                    # The logging will continue until you exit the loop
-                    break
 
-    elif mode == "moving":
-        with SyncLogger(scf, lg_stab) as logger:
-            while log_entry[1]['stateEstimate.z'] > 0.97:
-                # Iterate the logger to get the values
-                count = 0
-                for log_entry in logger:
-                    print("(" + "Timestamp: " + str(log_entry[0]) + ", " + str(log_entry[1]['stateEstimate.x']) + ", " + str(log_entry[1]['stateEstimate.y']) + ", " + str(log_entry[1]['stateEstimate.z']) + ")")
-                    
-                    count += 1
-                    z_pos_total += log_entry[1]['stateEstimate.z']
-                    if (count > 10):
-                        # The logging will continue until you exit the loop
-                        break
+                if first_time == True:
+                    x0 = log_entry[1]['stateEstimate.x']
+                    y0 = log_entry[1]['stateEstimate.y']
 
-    elif mode == "hover":
-        with SyncLogger(scf, lg_stab) as logger:
-            while log_entry[1]['stateEstimate.z'] > 0.97:
-                # Iterate the logger to get the values
-                count = 0
-                for log_entry in logger:
-                    print("(" + "Timestamp: " + str(log_entry[0]) + ", " + str(log_entry[1]['stateEstimate.x']) + ", " + str(log_entry[1]['stateEstimate.y']) + ", " + str(log_entry[1]['stateEstimate.z']) + ")")
-                    
-                    x_pos_total += log_entry[1]['stateEstimate.x']
-                    y_pos_total += log_entry[1]['stateEstimate.y']
-                    z_pos_total += log_entry[1]['stateEstimate.z']
-                    count += 1
+                send_state_to_monitor(log_entry[1]['stateEstimate.x'], x0, log_entry[1]['stateEstimate.y'], y0, log_entry[0])
 
-    elif mode == "entire_flight":
-        #Have to change your file path
-        
-        #Directional drift test Crazyflie 2.1
-        #project_directory = "/home/bitcraze/projects/crazyflie-lib-python-code/examples/log_data/2.1_flight/path_flight/forward/"
-        
-        #In place drift test Crazyflie 2.1
-        #project_directory = "/home/bitcraze/projects/crazyflie-lib-python-code/examples/log_data/2.1_flight/in_place_flight"
-        
-        #Patterned floor test Crazyflie 2.1+
-        #project_directory = "/home/bitcraze/projects/crazyflie-lib-python-code/examples/log_data/2.1+_flight/patterned_floor/in_place_flight"
+                logging_dict[log_entry[0]] = (log_entry[1]['stateEstimate.x'], log_entry[1]['stateEstimate.y'], log_entry[1]['stateEstimate.z'])
 
-        #In place drift test Crazyflie 2.1+
-        #project_directory = "/home/bitcraze/projects/crazyflie-lib-python-code/examples/log_data/2.1+_flight/in_place_flight"
-       
-        #Directional drift test Crazyflie 2.1+
-        #project_directory = "/home/bitcraze/projects/crazyflie-lib-python-code/examples/log_data/2.1+_flight/path_flight/left"
-
-        #Testing folder for logging
-        project_directory = "/home/bitcraze/projects/crazyflie-lib-python-code/examples/log_data/tests"
-
-        print(project_directory)
-
-        full_csv_path = os.path.join(project_directory, "run7.csv")
-
-        first_time = True
-
-        with SyncLogger(scf, lg_stab) as logger:
-            end_time = time.time() + 35
-            time.sleep(2)
-
-            for log_entry in logger:
-                if time.time() < end_time:
-                    print("Time: {}, Initial Time: {}".format(time.time(), end_time))
-                    print("(" + "Timestamp: " + str(log_entry[0]) + ", " + str(log_entry[1]['stateEstimate.x']) + ", " + str(log_entry[1]['stateEstimate.y']) + ", " + str(log_entry[1]['stateEstimate.z']) + ")")
-
-                    send_state_to_monitor(log_entry[1]['stateEstimate.x'], log_entry[1]['stateEstimate.y'], log_entry[0])
-
-                    with open(full_csv_path, 'a', newline = '') as file:
-                        writer = csv.writer(file)
-
-                        if first_time == True:
-                            field = ['Timestamp',
-                            'X-Coordinate',
-                            'Y-Coordinate',
-                            'Z-Coordinate'
-                            ]
-                
-                            writer.writerow(field)
-
-                            first_time = False
-
-                        else:
-                            writer.writerow(
-                            [log_entry[0],
-                            log_entry[1]['stateEstimate.x'],
-                            log_entry[1]['stateEstimate.y'],
-                            log_entry[1]['stateEstimate.z']
-                            ])
-
+    write_csv_log(full_csv_path, logging_dict)
 
 if __name__ == '__main__':
     cflib.crtp.init_drivers()
@@ -532,7 +466,7 @@ if __name__ == '__main__':
         t1 = threading.Thread(target=take_off_simple, args=(scf, lg_stab))
         #t1 = threading.Thread(target=fly_right, args=(scf, lg_stab))
         #t1 = threading.Thread(target=straight_line, args=(scf, lg_stab, 'l'))
-        t2 = threading.Thread(target=drone_logging, args=(scf, lg_stab, "entire_flight"))
+        t2 = threading.Thread(target=drone_logging, args=(scf, lg_stab))
 
         t1.start()
         t2.start()
