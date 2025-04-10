@@ -3,35 +3,7 @@ import ctypes
 import time
 
 #Edit to access your personally built RTLola Monitors
-drift_lib = ctypes.CDLL("/home/bitcraze/projects/rtlola/rtlola_spec/in_place_monitor/libmonitor.so")
-
-# Define the structure for Memory_x
-class Memory_x(ctypes.Structure):
-    _fields_ = [("valid", ctypes.ARRAY(ctypes.c_bool, 1)),
-                ("values", ctypes.ARRAY(ctypes.c_double, 1)),
-                ("current", ctypes.c_int),
-                ("is_fresh", ctypes.c_bool)]
-
-# Define the structure for Memory_y
-class Memory_y(ctypes.Structure):
-    _fields_ = [("valid", ctypes.ARRAY(ctypes.c_bool, 1)),
-                ("values", ctypes.ARRAY(ctypes.c_double, 1)),
-                ("current", ctypes.c_int),
-                ("is_fresh", ctypes.c_bool)]
-
-# Define the structure for Memory_x0
-class Memory_x0(ctypes.Structure):
-    _fields_ = [("valid", ctypes.ARRAY(ctypes.c_bool, 1)),
-                ("values", ctypes.ARRAY(ctypes.c_double, 1)),
-                ("current", ctypes.c_int),
-                ("is_fresh", ctypes.c_bool)]
-
-# Define the structure for Memory_y0
-class Memory_y0(ctypes.Structure):
-    _fields_ = [("valid", ctypes.ARRAY(ctypes.c_bool, 1)),
-                ("values", ctypes.ARRAY(ctypes.c_double, 1)),
-                ("current", ctypes.c_int),
-                ("is_fresh", ctypes.c_bool)]
+drift_lib = ctypes.CDLL("/home/bitcraze/projects/rtlola/rtlola_spec/in_place_corrected_monitor/libmonitor.so")
 
 # Define the structure for Memory_x_drift
 class Memory_x_drift(ctypes.Structure):
@@ -63,11 +35,7 @@ class Memory_trigger_1(ctypes.Structure):
 
 # Define the structure for StreamMemory
 class StreamMemory(ctypes.Structure):
-    _fields_ = [("x", Memory_x),
-                ("y", Memory_y),
-                ("x0", Memory_x0),
-                ("y0", Memory_y0),
-                ("x_drift", Memory_x_drift),
+    _fields_ = [("x_drift", Memory_x_drift),
                 ("y_drift", Memory_y_drift),
                 ("trigger_0", Memory_trigger_0),
                 ("trigger_1", Memory_trigger_1)]
@@ -79,17 +47,17 @@ class Memory(ctypes.Structure):
 
 # Define the structure for Event
 class RTLola_Event(ctypes.Structure):
-    _fields_ = [("has_x", ctypes.c_bool),
-                ("x", ctypes.c_double),
-                ("has_y", ctypes.c_bool),
-                ("y", ctypes.c_double)]
+    _fields_ = [("has_x_drift", ctypes.c_bool),
+                ("x_drift", ctypes.c_double),
+                ("has_y_drift", ctypes.c_bool),
+                ("y_drift", ctypes.c_double)]
 
 # Define the structure for InternalEvent
 class InternalEvent(ctypes.Structure):
-    _fields_ = [("has_x", ctypes.c_bool),
-                ("x", ctypes.c_double),
-                ("has_y", ctypes.c_bool),
-                ("y", ctypes.c_double),
+    _fields_ = [("has_x_drift", ctypes.c_bool),
+                ("x_drift", ctypes.c_double),
+                ("has_y_drift", ctypes.c_bool),
+                ("y_drift", ctypes.c_double),
                 ("time", ctypes.c_double)]
 
 # Define the structure for Verdict
@@ -118,24 +86,24 @@ drift_lib.display_verdict.restype = None
 
 # Additional functions for the various structures such as Memory_x, Memory_y, etc.
 # Memory_x functions (similar for other memory structures like Memory_y, Memory_x_drift, etc.)
-drift_lib.memory_get_x.argtypes = [ctypes.POINTER(Memory_x), ctypes.c_uint]
-drift_lib.memory_get_x.restype = ctypes.c_double
+drift_lib.memory_get_x_drift.argtypes = [ctypes.POINTER(Memory_x_drift), ctypes.c_uint]
+drift_lib.memory_get_x_drift.restype = ctypes.c_double
 
-drift_lib.memory_shift_x.argtypes = [ctypes.POINTER(Memory_x)]
-drift_lib.memory_shift_x.restype = None  # void function
+drift_lib.memory_shift_x_drift.argtypes = [ctypes.POINTER(Memory_x_drift)]
+drift_lib.memory_shift_x_drift.restype = None  # void function
 
-drift_lib.memory_update_x.argtypes = [ctypes.POINTER(Memory_x), ctypes.c_double]
-drift_lib.memory_update_x.restype = None  # void function
+drift_lib.memory_update_x_drift.argtypes = [ctypes.POINTER(Memory_x_drift), ctypes.c_double]
+drift_lib.memory_update_x_drift.restype = None  # void function
 
 # Same pattern for Memory_y, Memory_x0, Memory_y0, etc.
-drift_lib.memory_get_y.argtypes = [ctypes.POINTER(Memory_y), ctypes.c_uint]
-drift_lib.memory_get_y.restype = ctypes.c_double
+drift_lib.memory_get_y_drift.argtypes = [ctypes.POINTER(Memory_y_drift), ctypes.c_uint]
+drift_lib.memory_get_y_drift.restype = ctypes.c_double
 
-drift_lib.memory_shift_y.argtypes = [ctypes.POINTER(Memory_y)]
-drift_lib.memory_shift_y.restype = None  # void function
+drift_lib.memory_shift_y_drift.argtypes = [ctypes.POINTER(Memory_y_drift)]
+drift_lib.memory_shift_y_drift.restype = None  # void function
 
-drift_lib.memory_update_y.argtypes = [ctypes.POINTER(Memory_y), ctypes.c_double]
-drift_lib.memory_update_y.restype = None  # void function
+drift_lib.memory_update_y_drift.argtypes = [ctypes.POINTER(Memory_y_drift), ctypes.c_double]
+drift_lib.memory_update_y_drift.restype = None  # void function
 
 # For trigger_0, trigger_1, etc. (same pattern for other trigger types)
 drift_lib.memory_get_trigger_0.argtypes = [ctypes.POINTER(Memory_trigger_0), ctypes.c_uint]
@@ -157,10 +125,6 @@ drift_lib.memory_shift_trigger_1.restype = None  # void function
 drift_lib.memory_update_trigger_1.argtypes = [ctypes.POINTER(Memory_trigger_1), ctypes.c_char_p]
 drift_lib.memory_update_trigger_1.restype = None  # void function
 
-memory_x_instance = Memory_x()
-memory_y_instance = Memory_y()
-memory_x0_instance = Memory_x0()
-memory_y0_instance = Memory_y0()
 memory_x_drift_instance = Memory_x_drift()
 memory_y_drift_instance = Memory_y_drift()
 memory_trigger_0_instance = Memory_trigger_0()
@@ -168,10 +132,6 @@ memory_trigger_1_instance = Memory_trigger_1()
 
 # Instantiate StreamMemory with all the instances of the other structures
 stream_memory_instance = StreamMemory(
-    x=memory_x_instance,
-    y=memory_y_instance,
-    x0=memory_x0_instance,
-    y0=memory_y0_instance,
     x_drift=memory_x_drift_instance,
     y_drift=memory_y_drift_instance,
     trigger_0=memory_trigger_0_instance,
@@ -216,10 +176,10 @@ def send_state_to_monitor(x_val, x0, y_val, y0, timestamp):
     print("Python X: {}, Python Y: {}".format(x_val, y_val))
 
     event = RTLola_Event(
-        has_x=True,
-        x=x_val-x0,
-        has_y=True,
-        y=y_val-y0
+        has_x_drift=True,
+        x_drift=x_val-x0,
+        has_y_drift=True,
+        y_drift=y_val-y0
     )
 
     # Send the event to the monitor and receive a verdict
@@ -385,11 +345,6 @@ def write_csv_log(full_csv_path, logging_dict):
 
         for k, v in logging_dict.items():
             writer.writerow([k, v[0], v[1], v[2]])
-            print(k, v)
-
-        print("k, v done")
-
-    print("with done")
 
 #Log position data of drone
 def drone_logging(scf, lg_stab):
@@ -434,9 +389,15 @@ def drone_logging(scf, lg_stab):
                     x0 = log_entry[1]['stateEstimate.x']
                     y0 = log_entry[1]['stateEstimate.y']
 
+                    first_time = False
+
                 send_state_to_monitor(log_entry[1]['stateEstimate.x'], x0, log_entry[1]['stateEstimate.y'], y0, log_entry[0])
 
                 logging_dict[log_entry[0]] = (log_entry[1]['stateEstimate.x'], log_entry[1]['stateEstimate.y'], log_entry[1]['stateEstimate.z'])
+
+            else:
+                print("End time reached, stopping logging.")
+                break
 
     write_csv_log(full_csv_path, logging_dict)
 
