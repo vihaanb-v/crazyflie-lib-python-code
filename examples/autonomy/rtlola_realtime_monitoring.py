@@ -112,6 +112,10 @@ drift_lib.memory_init.restype = None  # void function
 drift_lib.accept_event.argtypes = [ctypes.POINTER(Memory), RTLola_Event, ctypes.c_double]
 drift_lib.accept_event.restype = Verdict
 
+# Displays verdict
+drift_lib.display_verdict.argtypes = [ctypes.POINTER(Verdict)] 
+drift_lib.display_verdict.restype = None
+
 # Additional functions for the various structures such as Memory_x, Memory_y, etc.
 # Memory_x functions (similar for other memory structures like Memory_y, Memory_x_drift, etc.)
 drift_lib.memory_get_x.argtypes = [ctypes.POINTER(Memory_x), ctypes.c_uint]
@@ -220,8 +224,12 @@ def send_state_to_monitor(x_val, y_val, timestamp):
 
     # Send the event to the monitor and receive a verdict
     verdict = drift_lib.accept_event(ctypes.byref(memory_instance), event, timestamp)
+    drift_lib.display_verdict(verdict)
 
     print("hi-verdict")
+    
+    '''
+    print("Trigger 0: {}".format(verdict.has_trigger_0))
 
     if verdict.has_trigger_0:
         # Check if the pointer is not null before trying to decode
@@ -232,6 +240,8 @@ def send_state_to_monitor(x_val, y_val, timestamp):
 
     print("hi-trigger-1")
 
+    print("Trigger 1: {}".format(verdict.has_trigger_1))
+
     if verdict.has_trigger_1:
         # Check if the pointer is not null before trying to decode
         print("hi-trigger-2-internal-1")
@@ -240,6 +250,7 @@ def send_state_to_monitor(x_val, y_val, timestamp):
             print(f"[RTLola] Trigger 1: {verdict.trigger_1.decode('utf-8')} @ {verdict.time:.3f}")
 
     print("hi-trigger-2")
+    '''
 
 def take_off_simple(scf, lg_stab):
     print("Takeoff.")
@@ -453,7 +464,7 @@ def drone_logging(scf, lg_stab, mode):
 
         print(project_directory)
 
-        full_csv_path = os.path.join(project_directory, "run6.csv")
+        full_csv_path = os.path.join(project_directory, "run7.csv")
 
         first_time = True
 
