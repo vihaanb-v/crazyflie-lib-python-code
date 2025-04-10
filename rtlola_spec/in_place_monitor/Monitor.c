@@ -146,7 +146,7 @@ void eval_y_drift(Memory *memory, double new_value) {
 memory_update_y_drift(memory, new_value);
 }
 void eval_trigger_0_0(Memory *memory) {
-char* new_value = STR_1;
+char* new_value = STR_0;
 memory_update_trigger_0(memory, new_value);
 }
 void eval_trigger_1_0(Memory *memory) {
@@ -184,16 +184,16 @@ memory_shift_y_drift(memory);
 if (event->has_y_drift) {
 eval_y_drift(memory, event->y_drift);
 }
-if (event->has_x_drift && sync_x_drift(memory)>0.05||sync_x_drift(memory)<(-0.05)) {
+if (event->has_x_drift && (sync_x_drift(memory)>0.05||sync_x_drift(memory)<(-0.05))) {
 memory_shift_trigger_0(memory);
 }
-if (event->has_y_drift && sync_y_drift(memory)>0.05||sync_y_drift(memory)<(-0.05)) {
+if (event->has_y_drift && (sync_y_drift(memory)>0.05||sync_y_drift(memory)<(-0.05))) {
 memory_shift_trigger_1(memory);
 }
-if (event->has_x_drift && sync_x_drift(memory)>0.05||sync_x_drift(memory)<(-0.05)) {
+if (event->has_x_drift && (sync_x_drift(memory)>0.05||sync_x_drift(memory)<(-0.05))) {
 eval_trigger_0_0(memory);
 }
-if (event->has_y_drift && sync_y_drift(memory)>0.05||sync_y_drift(memory)<(-0.05)) {
+if (event->has_y_drift && (sync_y_drift(memory)>0.05||sync_y_drift(memory)<(-0.05))) {
 eval_trigger_1_0(memory);
 }
 Verdict v = new_verdict(memory, event->time); reset_fresh(memory);;return v;}

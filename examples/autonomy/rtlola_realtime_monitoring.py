@@ -368,7 +368,7 @@ def drone_logging(scf, lg_stab):
 
     #Testing folder for logging
     project_directory = "/home/bitcraze/projects/crazyflie-lib-python-code/examples/log_data/tests"
-    full_csv_path = os.path.join(project_directory, "run8.csv")
+    full_csv_path = os.path.join(project_directory, "run9.csv")
 
     print(full_csv_path)
 
