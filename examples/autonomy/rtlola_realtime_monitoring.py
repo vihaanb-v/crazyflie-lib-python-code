@@ -3,7 +3,7 @@ import ctypes
 import time
 
 #Edit to access your personally built RTLola Monitors
-drift_lib = ctypes.CDLL("/home/bitcraze/projects/rtlola/rtlola_spec/in_place_monitor/libmonitor.so")
+drift_lib = ctypes.CDLL("/home/bitcraze/projects/crazyflie-lib-python-code/rtlola_spec/in_place_monitor/libmonitor.so")
 
 # Define the structure for Memory_x_drift
 class Memory_x_drift(ctypes.Structure):

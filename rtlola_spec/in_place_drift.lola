@@ -1,0 +1,5 @@
+input x_drift: Float64
+input y_drift: Float64
+
+trigger (x_drift > 0.05 or x_drift < -0.05)
+trigger (y_drift > 0.05 or y_drift < -0.05)
