@@ -377,7 +377,7 @@ def write_csv_log(full_csv_path, logging_dict):
 
         field = ['Timestamp',
         'X-Coordinate',
-        'Y-Coordinate'
+        'Y-Coordinate',
         'Z-Coordinate'
         ]
 
@@ -385,6 +385,11 @@ def write_csv_log(full_csv_path, logging_dict):
 
         for k, v in logging_dict.items():
             writer.writerow([k, v[0], v[1], v[2]])
+            print(k, v)
+
+        print("k, v done")
+
+    print("with done")
 
 #Log position data of drone
 def drone_logging(scf, lg_stab):
@@ -408,10 +413,9 @@ def drone_logging(scf, lg_stab):
 
     #Testing folder for logging
     project_directory = "/home/bitcraze/projects/crazyflie-lib-python-code/examples/log_data/tests"
+    full_csv_path = os.path.join(project_directory, "run8.csv")
 
-    print(project_directory)
-
-    full_csv_path = os.path.join(project_directory, "run11.csv")
+    print(full_csv_path)
 
     first_time = True
 
