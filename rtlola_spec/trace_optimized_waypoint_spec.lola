@@ -1,0 +1,64 @@
+import math
+input lat : Float64
+input lon :Float64
+input heading : Float64
+input pitch : Float64
+input bank : Float64
+input velocity : Float64
+input airspeed : Float64
+input vertical_speed : Float64
+input acceleration_x : Float64
+input acceleration_y : Float64
+input acceleration_z : Float64
+input altitude : Float64
+
+input reset_waypoints : Bool
+input skip_waypoint : Bool
+
+output velocity_kmh := velocity * 1.853
+
+constant PI : Float64 := 3.14519
+constant EARTH_RADIUS : Float64 := 6371009.0 // meter
+
+output current_lat : Float64 := lat
+output current_long : Float64 := lon
+
+output waypoint_index : UInt64 @(reset_waypoints || skip_waypoint || (lat && lon)) :=
+  if reset_waypoints.get(or: false) then 0
+  else if skip_waypoint.get(or: false) || waypoint_reached.get(or: false) then (waypoint_index.offset(by:-1).defaults(to:0) + 1) % 10
+  else waypoint_index.offset(by:-1).defaults(to: 0)
+
+output current_waypoint :=
+    if waypoint_index.offset(by:-1).defaults(to:0) == 0 then (49.21444, 7.11135)
+    else if waypoint_index.offset(by:-1).defaults(to:0) == 1 then (49.21802, 7.08268)
+    else if waypoint_index.offset(by:-1).defaults(to:0) == 2 then (49.23394, 7.06602)
+    else if waypoint_index.offset(by:-1).defaults(to:0) == 3 then (49.25944, 7.0699)
+    else if waypoint_index.offset(by:-1).defaults(to:0) == 4 then (49.26683, 7.10939)
+    else if waypoint_index.offset(by:-1).defaults(to:0) == 5 then (49.26683, 7.15095)
+    else if waypoint_index.offset(by:-1).defaults(to:0) == 6 then (49.25631, 7.1767)
+    else if waypoint_index.offset(by:-1).defaults(to:0) == 7 then (49.23749, 7.17911)
+    else if waypoint_index.offset(by:-1).defaults(to:0) == 8 then (49.21418, 7.16709)
+    else if waypoint_index.offset(by:-1).defaults(to:0) == 9 then (49.20409, 7.12897)
+    else (0.0, 0.0)
+
+output waypoint_lat := current_waypoint.0
+output waypoint_long := current_waypoint.1
+
+output current_lat_rad := current_lat * PI / 180.0
+output current_long_rad := current_long * PI / 180.0
+output waypoint_lat_rad := waypoint_lat * PI / 180.0
+output waypoint_long_rad := waypoint_long * PI / 180.0
+output mean_latitude := (waypoint_lat_rad + current_lat_rad) / 2.0
+output distance_to_waypoint_lat := waypoint_lat_rad - current_lat_rad
+output distance_to_waypoint_long := waypoint_long_rad - current_long_rad
+output distance_to_waypoint := EARTH_RADIUS * sqrt(distance_to_waypoint_long**2.0 + (cos(mean_latitude)*distance_to_waypoint_lat)**2.0)
+
+output waypoint_r := sqrt(distance_to_waypoint_long**2.0 + (distance_to_waypoint_lat)**2.0)
+output waypoint_phi := if waypoint_r == 0.0 then 0.0 else if distance_to_waypoint_long >= 0.0 then arccos(distance_to_waypoint_lat / waypoint_r) else -arccos(distance_to_waypoint_lat / waypoint_r)
+output waypoint_direction := waypoint_phi / (2.0*PI) * 360.0
+
+output waypoint_reached := distance_to_waypoint < 100.0
+
+output finished := waypoint_reached && waypoint_index == 0
+
+output estimated_time_until_waypoint := if velocity_kmh == 0.0 then 5000.0 else distance_to_waypoint / (velocity_kmh / 3.6)

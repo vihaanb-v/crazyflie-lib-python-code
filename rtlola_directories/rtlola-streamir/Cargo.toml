@@ -1,0 +1,28 @@
+[package]
+name = "rtlola-streamir"
+version = "0.1.0"
+edition = "2021"
+authors = [
+  "Jan Baumeister <jan.baumeister@cispa.de>",
+  "Frederik Scheerer <frederik.scheerer@cispa.de>",
+]
+description = "A framework for the compilation of stream-based languages through an intermediate representation"
+readme = "README.md"
+homepage = "https://rtlola.org"
+repository = "https://github.com/reactive-systems/rtlola-streamir"
+license = "Apache-2.0"
+keywords = ["verification", "compiler", "monitoring", "optimization"]
+
+[[bin]]
+name = "rtlola-streamir"
+path = "src/bin/main.rs"
+
+[dependencies]
+anyhow = "1.0.98"
+clap = { version = "4.5.32", features = ["derive"] }
+disjoint = "0.8.0"
+itertools = "0.14.0"
+rtlola-frontend = { version = "0.8.0", features = ["shift_layer"] }
+thiserror = "2.0.12"
+uom = { version = "0.31.1", features = ["rational64"] }
+winnow = "0.7.3"
