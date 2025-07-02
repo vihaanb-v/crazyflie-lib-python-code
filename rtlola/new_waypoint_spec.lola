@@ -1,0 +1,48 @@
+input motor_pass: Int64
+input battery_pass: Int64
+
+input x_drift: Float64
+input y_drift: Float64
+input z_drift: Float64
+
+input pitch: Float64
+input roll: Float64
+input yaw: Float64
+
+input vbat: Float64
+
+output abs_x_drift: Float64 := if x_drift < 0.0 then -x_drift else x_drift
+output abs_y_drift: Float64 := if y_drift < 0.0 then -y_drift else y_drift
+output abs_z_drift: Float64 := if z_drift < 0.0 then -z_drift else z_drift
+
+output abs_pitch: Float64 := if pitch < 0.0 then -pitch else pitch
+output abs_roll: Float64 := if roll < 0.0 then -roll else roll
+output abs_yaw: Float64 := if yaw < 0.0 then -yaw else yaw
+
+output motor_check: Int64 := motor_pass & 15
+output motor_failed: Bool := motor_check != 15
+trigger motor_failed "Motor check failed! Flight aborted! Fix before flying again!"
+
+output battery_failed: Bool := battery_pass == 0
+trigger battery_failed "Battery check failed! Flight aborted! Fix before flying again!"
+
+output x_drift_exceeded: Bool := abs_x_drift > 0.05
+trigger x_drift_exceeded "X drift exceeded 5 cm! Correcting position!"
+
+output y_drift_exceeded: Bool := abs_y_drift > 0.05
+trigger y_drift_exceeded "Y drift exceeded 5 cm! Correcting position!"
+
+output z_drift_exceeded: Bool := abs_z_drift > 0.05
+trigger z_drift_exceeded "Z drift exceeded 5 cm! Correcting position!"
+
+output pitch_exceeded: Bool := abs_pitch > 0.3
+trigger pitch_exceeded "Pitch exceeded 0.3 radians! Stabilizing!"
+
+output roll_exceeded: Bool := abs_roll > 0.3
+trigger roll_exceeded "Roll exceeded 0.3 radians! Stabilizing!"
+
+output yaw_exceeded: Bool := abs_yaw > 0.3
+trigger yaw_exceeded "Yaw exceeded 0.3 radians! Stabilizing!"
+
+output battery_low: Bool := vbat < 3.3
+trigger battery_low "Battery voltage dropped below 3.3V! Will either land or return to home!"

@@ -49,6 +49,13 @@ Consider an RTLola specification `spec.lola` in our working directory. Compile i
 target/release/rtlola2c spec.lola --out-dir monitor
 ```
 
+## Generating `libmonitor.so`
+
+```
+cd monitor
+gcc -fPIC -shared -o libmonitor.so monitor.c
+```
+
 which creates a directory `monitor` containing two files `monitor.c` and `monitor.h`.
 Note that the compilation fails, if one of the output files already exists.
 If [clang-format](https://clang.llvm.org/docs/ClangFormat.html) is installed, the generated files will be automatically formatted.

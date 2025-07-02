@@ -1,6 +1,6 @@
 import math
 input lat : Float64
-input lon :Float64
+input lon : Float64
 input heading : Float64
 input pitch : Float64
 input bank : Float64
