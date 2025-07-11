@@ -1,5 +1,4 @@
 import ctypes
-
 import time
 
 #Edit to access your personally built RTLola Monitors
