@@ -6,7 +6,7 @@ import time
 #Edit to access your personally built RTLola Monitors
 drift_lib = ctypes.CDLL("/home/bitcraze/projects/crazyflie-lib-python-code/rtlola/waypoint_monitor/libmonitor.so")
 
-# Define all BoundedBuffer structures
+#Define all BoundedBuffer structures
 class BoundedBuffer_int64_t(ctypes.Structure):
     _fields_ = [("values", ctypes.c_int64 * 1),
                 ("valid", ctypes.c_bool * 1),
@@ -31,7 +31,7 @@ class BoundedBuffer_str(ctypes.Structure):
                 ("current", ctypes.c_int),
                 ("is_fresh", ctypes.c_bool)]
 
-# Full Memory struct
+#Full Memory struct
 class Memory(ctypes.Structure):
     _fields_ = [
         ("boundedbuffer_motor_pass", BoundedBuffer_int64_t),
@@ -149,7 +149,7 @@ class Verdict(Structure):
         ("time", c_double),
     ]
 
-# Helper to build events
+#Helper to build events
 def create_event(motor_pass=None, battery_pass=None, x_drift=None, y_drift=None, z_drift=None,
                  pitch=None, roll=None, yaw=None, vbat=None, time_val=0.0):
     e = InternalEvent()
@@ -173,7 +173,7 @@ def create_event(motor_pass=None, battery_pass=None, x_drift=None, y_drift=None,
     e.time = time_val
     return e
 
-# Trigger display helper
+#Trigger display helper
 def display_verdict_triggers(verdict):
     for i in range(9):
         trigger_field = f"trigger_{i}"
@@ -186,8 +186,6 @@ def display_verdict_triggers(verdict):
 
 import logging
 import sys
-import os
-import csv
 import threading
 from threading import Timer
 from threading import Event
@@ -201,7 +199,9 @@ from cflib.crazyflie.log import LogConfig
 from cflib.utils import uri_helper
 
 import random
+import os
 import csv
+import matplotlib.pyplot as plt
 
 URI = uri_helper.uri_from_env(default='radio://0/80/2M/E7E7E7E7E7')
 
@@ -212,7 +212,7 @@ deck_attached_event = Event()
 
 logging.basicConfig(level=logging.ERROR)
 
-memory_instance = Memory()  # Initialize once globally
+memory_instance = Memory()
 
 def send_state_to_monitor(x_val, x0, y_val, y0, timestamp):
     x_drift_val = x_val - x0
@@ -221,7 +221,7 @@ def send_state_to_monitor(x_val, x0, y_val, y0, timestamp):
     event = create_event(
         x_drift=x_drift_val,
         y_drift=y_drift_val,
-        time_val=timestamp / 1000.0  # Convert CF timestamp to seconds
+        time_val=timestamp / 1000.0  #Convert timestamp to seconds
     )
 
     verdict = drift_lib.cycle(ctypes.byref(memory_instance), event)
@@ -237,7 +237,7 @@ def take_off_simple(scf, lg_stab):
     print("Touchdown.")
     
 #Waypoint flight
-def waypoint_flight(scf, lg_stab, rnd):
+def waypoint_flight(scf, log_drone, rnd):
     if rnd == True:
         x_pos = []
         y_pos = []
@@ -315,64 +315,237 @@ def param_deck_flow(name, value_str):
     else:
         print('Deck is NOT attached!')
 
-def write_csv_log(full_csv_path, logging_dict):
-    with open(full_csv_path, 'a', newline = '') as file:
+def write_csv_log(full_csv_path_log, logging_rows):
+    headers = [
+        "Timestamp",
+        "x", "y", "z",
+        "x_drift", "y_drift", "z_drift",
+        "roll", "pitch", "yaw",
+        "roll_drift", "pitch_drift", "yaw_drift",
+        "vbat",
+        "motor_pass", "battery_pass",
+        "motor_failed", "trigger_0",
+        "battery_failed", "trigger_1",
+        "x_drift_exceeded", "trigger_2",
+        "y_drift_exceeded", "trigger_3",
+        "z_drift_exceeded", "trigger_4",
+        "pitch_exceeded", "trigger_5",
+        "roll_exceeded", "trigger_6",
+        "yaw_exceeded", "trigger_7",
+        "battery_low", "trigger_8"
+    ]
+
+    with open(full_csv_path_log, 'w', newline='') as file:
         writer = csv.writer(file)
+        writer.writerow(headers)
+        writer.writerows(logging_rows)
 
-        field = ['Timestamp',
-        'X-Coordinate',
-        'Y-Coordinate',
-        'Z-Coordinate'
-        ]
+    print(f"CSV saved to: {full_csv_path_log}")
 
-        writer.writerow(field)
+def graph_data(project_directory_plot, logging_rows):
+    #Extract from logging_rows
+    timestamps = [row[0] for row in logging_rows]
+    time_seconds = [t / 1000.0 for t in timestamps]
 
-        for k, v in logging_dict.items():
-            writer.writerow([k, v[0], v[1], v[2]])
+    x_drift = [row[4] for row in logging_rows]
+    y_drift = [row[5] for row in logging_rows]
+    z_drift = [row[6] for row in logging_rows]
 
-#Log position data of drone
-def drone_logging(scf, lg_stab):
-    #Testing folder for logging
-    project_directory = "/home/bitcraze/projects/crazyflie-lib-python-code/examples/log_data/tests"
-    full_csv_path = os.path.join(project_directory, "run9.csv")
+    roll_drift = [row[10] for row in logging_rows]
+    pitch_drift = [row[11] for row in logging_rows]
+    yaw_drift = [row[12] for row in logging_rows]
 
-    print(full_csv_path)
+    #Plot position drift
+    plt.figure(figsize=(12, 6))
+    plt.plot(time_seconds, x_drift, label='X Drift', linewidth=2, color='blue')
+    plt.plot(time_seconds, y_drift, label='Y Drift', linewidth=2, color='red')
+    plt.plot(time_seconds, z_drift, label='Z Drift', linewidth=2, color='green')
+
+    plt.title('Drone Positional Drift vs. Time')
+    plt.xlabel('Time (seconds)')
+    plt.ylabel('Drift (meters)')
+
+    plt.legend()
+    plt.grid(True)
+    plt.tight_layout()
+
+    position_plot_path = os.path.join(project_directory_plot, "run1_position_drift.pdf")
+    plt.savefig(position_plot_path, dpi=300)
+    plt.close()
+
+    #Plot orientation drift
+    plt.figure(figsize=(12, 6))
+    plt.plot(time_seconds, roll_drift, label='Roll Drift', linewidth=2, color='blue')
+    plt.plot(time_seconds, pitch_drift, label='Pitch Drift', linewidth=2, color='red')
+    plt.plot(time_seconds, yaw_drift, label='Yaw Drift', linewidth=2, color='green')
+
+    plt.title('Drone Orientation Drift vs. Time')
+    plt.xlabel('Time (seconds)')
+    plt.ylabel('Drift (radians)')
+
+    plt.legend()
+    plt.grid(True)
+    plt.tight_layout()
+
+    orientation_plot_path = os.path.join(project_directory_plot, "run1_orientation_drift.pdf")
+    plt.savefig(orientation_plot_path, dpi=300)
+    plt.close()
+
+    print(f"Saved plots to:\n{position_plot_path}\n{orientation_plot_path}")
+
+
+def drone_logging(scf, log_drone):
+    project_directory_log = "/home/bitcraze/projects/crazyflie-lib-python-code/examples/log_data/rtlola/v1_logs"
+    full_csv_path_log = os.path.join(project_directory_log, "run1.csv")
+
+    project_directory_plot = "/home/bitcraze/projects/crazyflie-lib-python-code/examples/log_data/rtlola/v1_plots/run1"
+
+    #Create directories
+    os.makedirs(project_directory_log, exist_ok=True)
+    os.makedirs(project_directory_plot, exist_ok=True)
+
+    print(f"Logging to: {full_csv_path_log}")
+    print(f"Plotting at: {project_directory_plot}")
 
     first_time = True
+    logging_rows = []
 
-    with SyncLogger(scf, lg_stab) as logger:
+    with SyncLogger(scf, log_drone) as logger:
         end_time = time.time() + 35
         time.sleep(2)
 
-        logging_dict = {}
-
         for log_entry in logger:
-            if time.time() < end_time:
-                print("Time: {}, Initial Time: {}".format(time.time(), end_time))
-                print("(" + "Timestamp: " + str(log_entry[0]) + ", " + str(log_entry[1]['stateEstimate.x']) + ", " + str(log_entry[1]['stateEstimate.y']) + ", " + str(log_entry[1]['stateEstimate.z']) + ")")
-
-                if first_time == True:
-                    x0 = log_entry[1]['stateEstimate.x']
-                    y0 = log_entry[1]['stateEstimate.y']
-
-                    first_time = False
-
-                send_state_to_monitor(log_entry[1]['stateEstimate.x'], x0, log_entry[1]['stateEstimate.y'], y0, log_entry[0])
-
-                logging_dict[log_entry[0]] = (log_entry[1]['stateEstimate.x'], log_entry[1]['stateEstimate.y'], log_entry[1]['stateEstimate.z'])
-
-            else:
+            if time.time() >= end_time:
                 print("End time reached, stopping logging.")
                 break
 
-    write_csv_log(full_csv_path, logging_dict)
+            timestamp = log_entry[0]
+            data = log_entry[1]
+
+            #Raw sensor values
+            x = data['stateEstimate.x']
+            y = data['stateEstimate.y']
+            z = data['stateEstimate.z']
+
+            roll = data['stateEstimate.roll']
+            pitch = data['stateEstimate.pitch']
+            yaw = data['stateEstimate.yaw']
+
+            vbat = data['pm.vbat']
+
+            motor_pass = int(data['health.motorPass'])
+            battery_pass = int(data['health.batteryPass'])
+
+            if first_time:
+                x0, y0, z0 = x, y, z
+                roll0, pitch0, yaw0 = roll, pitch, yaw
+
+                first_time = False
+
+            #Compute drift
+            dx = x - x0
+            dy = y - y0
+            dz = z - z0
+
+            droll = roll - roll0
+            dpitch = pitch - pitch0
+            dyaw = yaw - yaw0
+
+            #Send to RTLola monitor
+            event = create_event(
+                motor_pass=motor_pass,
+                battery_pass=battery_pass,
+                x_drift=dx,
+                y_drift=dy,
+                z_drift=dz,
+                pitch=dpitch,
+                roll=droll,
+                yaw=dyaw,
+                vbat=vbat,
+                time_val=timestamp / 1000.0
+            )
+            
+            verdict = drift_lib.cycle(ctypes.byref(memory_instance), event)
+
+            #Extract triggers and verdict flags
+            def get_val(name):
+                return getattr(verdict, name)
+
+            def get_trigger(name):
+                present = getattr(verdict, f"{name}_is_present")
+                val = getattr(verdict, name)
+                return ctypes.string_at(val).decode() if present and val else ""
+
+            row = [
+                timestamp,
+                x, y, z,
+                dx, dy, dz,
+                roll, pitch, yaw,
+                droll, dpitch, dyaw,
+                vbat,
+                motor_pass, battery_pass,
+                int(get_val("motor_failed")),
+                get_trigger("trigger_0"),
+                int(get_val("battery_failed")),
+                get_trigger("trigger_1"),
+                int(get_val("x_drift_exceeded")),
+                get_trigger("trigger_2"),
+                int(get_val("y_drift_exceeded")),
+                get_trigger("trigger_3"),
+                int(get_val("z_drift_exceeded")),
+                get_trigger("trigger_4"),
+                int(get_val("pitch_exceeded")),
+                get_trigger("trigger_5"),
+                int(get_val("roll_exceeded")),
+                get_trigger("trigger_6"),
+                int(get_val("yaw_exceeded")),
+                get_trigger("trigger_7"),
+                int(get_val("battery_low")),
+                get_trigger("trigger_8")
+            ]
+
+            logging_rows.append(row)
+
+            print("\n" + "=" * 80)
+
+            print(f"Timestamp: {timestamp}")
+
+            print("-" * 80)
+
+            print("Telemetry")
+            print(f"  Position       → x: {x:.2f}, y: {y:.2f}, z: {z:.2f}")
+            print(f"  Drift          → dx: {dx:.2f}, dy: {dy:.2f}, dz: {dz:.2f}")
+            print(f"  Orientation    → roll: {roll:.2f}, pitch: {pitch:.2f}, yaw: {yaw:.2f}")
+            print(f"  Drift (orient) → d_roll: {droll:.2f}, d_pitch: {dpitch:.2f}, d_yaw: {dyaw:.2f}")
+            print(f"  Battery        → vbat: {vbat:.2f} V")
+            print(f"  Health Flags   → motorPass: {motor_pass}, batteryPass: {battery_pass}")
+
+            print("\n RTLola Verdict Flags")
+            print(f"  motor_failed     : {int(get_val('motor_failed'))}")
+            print(f"  battery_failed   : {int(get_val('battery_failed'))}")
+            print(f"  x_drift_exceeded : {int(get_val('x_drift_exceeded'))}")
+            print(f"  y_drift_exceeded : {int(get_val('y_drift_exceeded'))}")
+            print(f"  z_drift_exceeded : {int(get_val('z_drift_exceeded'))}")
+            print(f"  pitch_exceeded   : {int(get_val('pitch_exceeded'))}")
+            print(f"  roll_exceeded    : {int(get_val('roll_exceeded'))}")
+            print(f"  yaw_exceeded     : {int(get_val('yaw_exceeded'))}")
+            print(f"  battery_low      : {int(get_val('battery_low'))}")
+
+            print("\n Triggers Fired")
+            display_verdict_triggers(verdict)
+
+            print("=" * 80 + "\n")
+
+    #Write to CSV
+    write_csv_log(full_csv_path_log, logging_rows)
+
+    #Plot data
+    graph_data(project_directory_plot, logging_rows)
 
 if __name__ == '__main__':
     cflib.crtp.init_drivers()
 
-    # Initialize stream memory and memory
-    drift_lib.init_stream_memory(ctypes.byref(stream_memory_instance))
-    start_time = time.time()  # or use time.time() if timestamp is relative to wall clock
+    start_time = time.time()
     drift_lib.memory_init(ctypes.byref(memory_instance), start_time)
 
     with SyncCrazyflie(URI, cf=Crazyflie(rw_cache= './cache')) as scf:
@@ -387,28 +560,25 @@ if __name__ == '__main__':
 
         #Defining log variables
         #Drone Health
-        lg_stab = LogConfig(name='Health', period_in_ms=100)
-        lg_stab.add_variable('health.motorPass', 'float')
-        lg_stab.add_variable('health.batteryPass', 'float')
+        log_drone = LogConfig(name='Crazyflie_Variables', period_in_ms=100)
+        log_drone.add_variable('health.motorPass', 'float')
+        log_drone.add_variable('health.batteryPass', 'float')
 
         #Battery Life
-        lg_stab = LogConfig(name='Battery', period_in_ms=100)   
-        lg_stab.add_variable('pm.vbat', 'float')
+        log_drone.add_variable('pm.vbat', 'float')
 
         #Position
-        lg_stab = LogConfig(name='Position', period_in_ms=100)
-        lg_stab.add_variable('stateEstimate.x', 'float')
-        lg_stab.add_variable('stateEstimate.y', 'float')
-        lg_stab.add_variable('stateEstimate.z', 'float')
+        log_drone.add_variable('stateEstimate.x', 'float')
+        log_drone.add_variable('stateEstimate.y', 'float')
+        log_drone.add_variable('stateEstimate.z', 'float')
 
         #Rotation
-        lg_stab = LogConfig(name='Rotation', period_in_ms=100)
-        lg_stab.add_variable('stateEstimate.roll', 'float')
-        lg_stab.add_variable('stateEstimate.pitch', 'float')
-        lg_stab.add_variable('stateEstimate.yaw', 'float')
+        log_drone.add_variable('stateEstimate.roll', 'float')
+        log_drone.add_variable('stateEstimate.pitch', 'float')
+        log_drone.add_variable('stateEstimate.yaw', 'float')
 
-        t1 = threading.Thread(target=waypoint_flight, args=(scf, lg_stab, True))
-        t2 = threading.Thread(target=drone_logging, args=(scf, lg_stab))
+        t1 = threading.Thread(target=waypoint_flight, args=(scf, log_drone, True))
+        t2 = threading.Thread(target=drone_logging, args=(scf, log_drone))
 
         t1.start()
         t2.start()
