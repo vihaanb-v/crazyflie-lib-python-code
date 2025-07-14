@@ -165,6 +165,7 @@ from cflib.positioning.motion_commander import MotionCommander
 from cflib.crazyflie.log import LogConfig
 from cflib.utils import uri_helper
 
+import numpy as np
 import random
 import os
 import csv
@@ -174,7 +175,7 @@ import matplotlib.pyplot as plt
 
 URI = uri_helper.uri_from_env(default='radio://0/80/2M/E7E7E7E7E7')
 
-DEFAULT_HEIGHT = 1.5
+DEFAULT_HEIGHT = 1
 ERROR_PARAMETER = 0.2
 
 deck_attached_event = Event()
@@ -341,7 +342,7 @@ def graph_data(project_directory_plot, logging_rows):
     plt.grid(True)
     plt.tight_layout()
 
-    position_plot_path = os.path.join(project_directory_plot, "run1_position_drift.png")
+    position_plot_path = os.path.join(project_directory_plot, "run11_position_drift.png")
     plt.savefig(position_plot_path, dpi=300)
     plt.close()
 
@@ -358,7 +359,7 @@ def graph_data(project_directory_plot, logging_rows):
     plt.grid(True)
     plt.tight_layout()
 
-    orientation_plot_path = os.path.join(project_directory_plot, "run1_orientation_drift.png")
+    orientation_plot_path = os.path.join(project_directory_plot, "run11_orientation_drift.png")
     plt.savefig(orientation_plot_path, dpi=300)
     plt.close()
 
@@ -411,17 +412,48 @@ def graph_3d_trajectory(project_directory_plot, logging_rows, ideal_coords):
     ax.view_init(elev=25, azim=135)
 
     plt.tight_layout()
-    plot_path_base = os.path.join(project_directory_plot, "run1_3d_flight_path.svg")
+    plot_path_base = os.path.join(project_directory_plot, "run11_3d_flight_path.svg")
     plt.savefig(plot_path_base, format='svg')
     plt.close()
     print(f"Saved 3D trajectory plot to: {plot_path_base}")
 
+def closest_point_on_segment(p, a, b):
+    """Find the closest point on segment ab to point p."""
+    p = np.array(p)
+    a = np.array(a)
+    b = np.array(b)
+    ab = b - a
+    ap = p - a
+    ab_len_sq = np.dot(ab, ab)
 
-def drone_logging_position(scf, log_position, log_dict):
+    if ab_len_sq == 0:
+        return a  # segment is a point
+    t = np.dot(ap, ab) / ab_len_sq
+    t = max(0, min(1, t))  # Clamp to segment
+    return a + t * ab
+
+def compute_drift_from_path(pos, waypoints):
+    """Return drift vector (dx, dy, dz) from pos to nearest path segment."""
+    min_dist = float('inf')
+    best_drift = (0.0, 0.0, 0.0)
+
+    for i in range(len(waypoints) - 1):
+        a = waypoints[i]
+        b = waypoints[i + 1]
+        closest = closest_point_on_segment(pos, a, b)
+        drift_vec = np.array(pos) - closest
+        dist = np.linalg.norm(drift_vec)
+        if dist < min_dist:
+            min_dist = dist
+            best_drift = tuple(drift_vec)
+
+    return best_drift
+
+def drone_logging_position(scf, log_position, log_dict, waypoints):
     takeoff_started.wait()
 
     first_time = True
-    x0 = y0 = z0 = roll0 = pitch0 = yaw0 = None
+    roll0 = pitch0 = yaw0 = None
 
     with SyncLogger(scf, log_position) as logger:
         end_time = time.time() + 60
@@ -443,13 +475,11 @@ def drone_logging_position(scf, log_position, log_dict):
             yaw = data['stateEstimate.yaw']
 
             if first_time:
-                x0, y0, z0 = x, y, z
                 roll0, pitch0, yaw0 = roll, pitch, yaw
                 first_time = False
 
-            dx = x - x0
-            dy = y - y0
-            dz = z - z0
+            # === Use geometric drift ===
+            dx, dy, dz = compute_drift_from_path((x, y, z), waypoints)
 
             droll = roll - roll0
             dpitch = pitch - pitch0
@@ -499,9 +529,9 @@ def drone_logging_position(scf, log_position, log_dict):
 
             log_dict[timestamp] = row_data
 
-            print(f"[{timestamp}] Pos: ({x:.2f}, {y:.2f}, {z:.2f}) | Drift: (x = {dx:.2f}, y = {dy:.2f}, z={dz:.2f}) | "
-                f"Orientation: (roll = {roll:.2f}, pitch = {pitch:.2f}, yaw = {yaw:.2f}) | "
-                f"Orient Drift: (droll = {droll:.2f}, dpitch = {dpitch:.2f}, dyaw = {dyaw:.2f})")
+            print(f"[{timestamp}] Pos: ({x:.2f}, {y:.2f}, {z:.2f}) | Drift: (x = {dx:.2f}, y = {dy:.2f}, z ={ dz:.2f}) | "
+                  f"Orientation: (roll = {roll:.2f}, pitch = {pitch:.2f}, yaw = {yaw:.2f}) | "
+                  f"Orient Drift: (droll = {droll:.2f}, dpitch = {dpitch:.2f}, dyaw = {dyaw:.2f})")
             display_verdict_triggers(verdict)
 
 if __name__ == '__main__':
@@ -540,9 +570,9 @@ if __name__ == '__main__':
         flight_thread = threading.Thread(target=flight_wrapper)
 
         project_directory_data_log = "/home/bitcraze/projects/crazyflie-lib-python-code/examples/log_data/rtlola/v1_logs"
-        full_csv_path_data_log = os.path.join(project_directory_data_log, "run1.csv")
+        full_csv_path_data_log = os.path.join(project_directory_data_log, "run11.csv")
 
-        project_directory_plot = "/home/bitcraze/projects/crazyflie-lib-python-code/examples/log_data/rtlola/v1_plots/run1"
+        project_directory_plot = "/home/bitcraze/projects/crazyflie-lib-python-code/examples/log_data/rtlola/v1_plots/run11"
 
         #Create directories
         os.makedirs(project_directory_data_log, exist_ok=True)
@@ -551,24 +581,22 @@ if __name__ == '__main__':
         print(f"Logging at: {project_directory_data_log}")
         print(f"Plotting at: {project_directory_plot}")
 
-        position_thread = threading.Thread(target=drone_logging_position, args=(scf, log_position, log_dict))
-
-        flight_thread.start()
-        position_thread.start()
-
-        flight_thread.join()
-        position_thread.join()
-
-        ideal_coords = ideal_coords_holder.get("coords")
-
-        if ideal_coords is None:
-            ideal_coords = [
+        # Ideal coordinates for predefined flight
+        ideal_coords = [
                 (0, 0, 0),
                 (0, 0, 1),
                 (-0.6, 1, 1.2),
                 (0.8, 1.6, 0.4),
                 (2, 0.4, 0.8)
             ]
+
+        position_thread = threading.Thread(target=drone_logging_position, args=(scf, log_position, log_dict, ideal_coords))
+
+        flight_thread.start()
+        position_thread.start()
+
+        flight_thread.join()
+        position_thread.join()
             
         write_csv_log(full_csv_path_data_log, log_dict)
         graph_data(project_directory_plot, list(log_dict.values()))
