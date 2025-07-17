@@ -337,6 +337,7 @@ def graph_data(project_directory_plot, logging_rows):
 
     plt.title('Drone Positional Drift vs. Time')
     plt.xlabel('Time (seconds)')
+    
     plt.ylabel('Drift (meters)')
     plt.legend()
     plt.grid(True)
