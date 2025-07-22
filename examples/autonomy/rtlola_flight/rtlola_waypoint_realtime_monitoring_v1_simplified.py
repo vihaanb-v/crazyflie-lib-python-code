@@ -176,7 +176,6 @@ import matplotlib.pyplot as plt
 URI = uri_helper.uri_from_env(default='radio://0/80/2M/E7E7E7E7E7')
 
 DEFAULT_HEIGHT = 1
-ERROR_PARAMETER = 0.2
 
 deck_attached_event = Event()
 
@@ -199,7 +198,7 @@ def send_state_to_monitor(x_val, x0, y_val, y0, timestamp):
     verdict = drift_lib.cycle(ctypes.byref(memory_instance), event)
     display_verdict_triggers(verdict)
 
-def take_off_simple(scf, lg_stab):
+def take_off_simple(scf):
     print("Takeoff.")
     
     with MotionCommander(scf, default_height=DEFAULT_HEIGHT) as mc:
