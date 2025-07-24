@@ -190,7 +190,7 @@ from mpl_toolkits.mplot3d import Axes3D
 
 URI = uri_helper.uri_from_env(default='radio://0/80/2M/E7E7E7E7E7')
 
-DEFAULT_HEIGHT = 1
+DEFAULT_HEIGHT = 1.5
 
 deck_attached_event = Event()
 
@@ -219,6 +219,23 @@ def send_state_to_monitor(x_val, x0, y_val, y0, mx_val, mx0, my_val, my0, mz_val
     verdict = drift_lib.cycle(ctypes.byref(memory_instance), event)
     display_verdict_triggers(verdict)
 
+def param_deck_flow(name, value_str):
+    value = int(value_str)
+    print(value)
+    if value:
+        deck_attached_event.set()
+        print('Flow deck v2 detected!')
+    else:
+        print("[EXIT] Flow deck v2 not detected. Aborting.")
+
+def param_deck_multi_ranger(name, value_str):
+    value = int(value_str)
+    print(value)
+    if value:
+        deck_attached_event.set()
+        print('Multi-ranger deck detected!')
+    else:
+        print("[EXIT] Multi-ranger deck not detected. Aborting.")
 
 def take_off_simple(scf):
     print("Takeoff.")
@@ -281,38 +298,28 @@ def waypoint_flight(scf, rnd):
 
     else:
         print("Coordinate 1 (Takeoff): (0, 0, 0)")
-        print("Coordinate 2 (Hover): (0, 0, 1)")
-        print("Coordinate 3: (-0.6, 1, 1.2)")
-        print("Coordinate 4: (0.8, 1.6, 0.4)")
-        print("Coordinate 5: (2, 0.4, 0.8)")
-        print("Coordinate 6 (RTH): (0, 0, 1)")
+        print("Coordinate 2 (Hover): (0, 0, 1.5)")
+        print("Coordinate 3: (-0.6, 0.6, 1.2)")
+        print("Coordinate 4: (0.8, -0.4, 0.4)")
+        print("Coordinate 5: (0.3, 0.5, 0.9)")
+        print("Coordinate 6 (RTH): (0, 0, 1.5)")
         print("Coordinate 7 (Landing): (0, 0, 0)")
 
         print("Takeoff.")
         takeoff_started.set()
         with MotionCommander(scf, default_height=DEFAULT_HEIGHT) as mc:
             time.sleep(5)
-            mc.move_distance(-0.6, 1, 0.2, velocity=1.5)
+            mc.move_distance(-0.6, 0.6, -0.3, velocity=1.5)
             time.sleep(5)
-            mc.move_distance(1.4, 0.6, -0.8, velocity=1.5)
+            mc.move_distance(1.4, -1.0, -0.8, velocity=1.5)
             time.sleep(5)
-            mc.move_distance(1.2, -1.2, 0.4, velocity=1.5)
+            mc.move_distance(-0.5, 0.9, 0.5, velocity=1.5)
             time.sleep(5)
-            mc.move_distance(-2, -0.4, 0.2, velocity=1.5)
+            mc.move_distance(-0.3, -0.5, 0.6, velocity=1.5)
             time.sleep(5)
             mc.stop()
 
         print("Touchdown.")
-
-#Check if flow deck is attached to Crazyflie
-def param_deck_flow(name, value_str):
-    value = int(value_str)
-    print(value)
-    if value:
-        deck_attached_event.set()
-        print('Deck is attached!')
-    else:
-        print('Deck is NOT attached!')
 
 def write_state_csv_log(full_csv_path_log, log_dict):
     headers = [
@@ -469,7 +476,7 @@ def graph_3d_state_estimate_vs_ideal(project_directory_plot, logging_rows, ideal
     plt.close()
     print(f"Saved state estimate vs. ideal trajectory plot to: {path}")
 
-def graph_3d_multiranger_vs_ideal(project_directory_plot, multiranger_rows, ideal_coords):
+def graph_3d_multiranger_vs_ideal(project_directory_plot, multiranger_rows, ideal_coords, run_id):
     import matplotlib.pyplot as plt
     from mpl_toolkits.mplot3d import Axes3D
     import os
@@ -625,10 +632,11 @@ def drone_logging_position_state_estimate(scf, log_state_estimate, log_dict_stat
 def drone_logging_position_multi_ranger(scf, log_multi_ranger, log_dict_ranger, waypoints):
     takeoff_started.wait()
 
-    # Define known bounding box dimensions in meters
-    BOX_LENGTH_X = 3.0  # front-back total length
-    BOX_WIDTH_Y = 2.5   # left-right total width
-    BOX_HEIGHT_Z = 1.5  # vertical height
+    LEFT_BOUND = -2.413
+    RIGHT_BOUND = 2.413
+    BACK_BOUND = -2.159
+    FRONT_BOUND = 2.159
+    TOP_BOUND = 3.239
 
     with SyncLogger(scf, log_multi_ranger) as logger:
         end_time = time.time() + 60
@@ -641,19 +649,17 @@ def drone_logging_position_multi_ranger(scf, log_multi_ranger, log_dict_ranger, 
             timestamp = log_entry[0]
             data = log_entry[1]
 
-            # Read multiranger distances (assumed in meters)
-            front = data['range.front']
-            back = data['range.back']
-            left = data['range.left']
-            right = data['range.right']
-            up = data['range.up']
+            front = data['range.front'] /1000.0
+            back = data['range.back'] / 1000.0
+            left = data['range.left'] / 1000.0
+            right = data['range.right'] / 1000.0
+            up = data['range.up'] / 1000.0
 
             # Infer position within known box
-            mx = BOX_LENGTH_X - front
-            my = BOX_WIDTH_Y - left
-            mz = BOX_HEIGHT_Z - up
+            mx = RIGHT_BOUND - right
+            my = FRONT_BOUND - front
+            mz = TOP_BOUND - up
 
-            # Compute geometric drift from ideal waypoint path
             dx, dy, dz = compute_drift_from_path((mx, my, mz), waypoints)
 
             event = create_event(
@@ -696,6 +702,8 @@ def drone_logging_position_multi_ranger(scf, log_multi_ranger, log_dict_ranger, 
 if __name__ == '__main__':
     cflib.crtp.init_drivers()
 
+    run_id = "run1"
+
     log_dict_state = {}
     log_dict_ranger = {}
     ideal_coords_holder = {}
@@ -706,22 +714,32 @@ if __name__ == '__main__':
 
         # Flow deck check
         scf.cf.param.add_update_callback(group='deck', name='bcFlow2', cb=param_deck_flow)
+
         time.sleep(1)
         if not deck_attached_event.wait(timeout=1):
             print('No flow deck detected!')
             sys.exit(1)
 
+        scf.cf.param.add_update_callback(group='deck', name='bcMultiranger', cb=param_deck_multi_ranger)
+
+        if not deck_attached_event.wait(timeout=2):
+            sys.exit(1)
+
+
         # Logging state estimate parameters
         log_state_estimate = LogConfig(name='Position', period_in_ms=100)
+
         log_state_estimate.add_variable('stateEstimate.x', 'float')
         log_state_estimate.add_variable('stateEstimate.y', 'float')
         log_state_estimate.add_variable('stateEstimate.z', 'float')
+
         log_state_estimate.add_variable('stateEstimate.roll', 'float')
         log_state_estimate.add_variable('stateEstimate.pitch', 'float')
         log_state_estimate.add_variable('stateEstimate.yaw', 'float')
 
         # Logging multi-ranger parameters
         log_multi_ranger = LogConfig(name='Multi-Ranger', period_in_ms=100)
+
         log_multi_ranger.add_variable('range.front', 'float')
         log_multi_ranger.add_variable('range.back', 'float')
         log_multi_ranger.add_variable('range.up', 'float')
@@ -733,15 +751,13 @@ if __name__ == '__main__':
 
         flight_thread = threading.Thread(target=flight_wrapper)
 
-        run_id = "run11"
-
-        project_dir_log = f"/home/bitcraze/projects/crazyflie-lib-python-code/examples/log_data/rtlola/v1_logs/{run_id}"
+        project_dir_log = f"/home/bitcraze/projects/crazyflie-lib-python-code/examples/log_data/rtlola_second_spec_runs/v1_logs/{run_id}"
         os.makedirs(project_dir_log, exist_ok=True)
 
         path_state_csv = os.path.join(project_dir_log, f"{run_id}_state.csv")
         path_ranger_csv = os.path.join(project_dir_log, f"{run_id}_ranger.csv")
 
-        project_dir_plot = f"/home/bitcraze/projects/crazyflie-lib-python-code/examples/log_data/rtlola/v1_plots/{run_id}"
+        project_dir_plot = f"/home/bitcraze/projects/crazyflie-lib-python-code/examples/log_data/rtlola_second_spec_runs/v1_plots/{run_id}"
         os.makedirs(project_dir_plot, exist_ok=True)
 
         print(f"Logging at: {project_dir_log}")
@@ -749,10 +765,10 @@ if __name__ == '__main__':
 
         ideal_coords = [
             (0, 0, 0),
-            (0, 0, 1),
-            (-0.6, 1, 1.2),
-            (0.8, 1.6, 0.4),
-            (2, 0.4, 0.8)
+            (0, 0, 1.5),
+            (-0.6, 0.6, 1.2),
+            (0.8, -0.4, 0.4),
+            (0.3, 0.5, 0.9)
         ]
 
         state_estimate_thread = threading.Thread(
