@@ -532,11 +532,6 @@ def graph_3d_state_estimate_vs_ideal(project_directory_plot, logging_rows, ideal
     y_ideal_loop = list(y_ideal) + [y_ideal[1]]
     z_ideal_loop = list(z_ideal) + [z_ideal[1]]
 
-    # Plotting
-    import matplotlib.pyplot as plt
-    from mpl_toolkits.mplot3d import Axes3D
-    import os
-
     fig = plt.figure(figsize=(18, 14))
     ax = fig.add_subplot(111, projection='3d')
 
@@ -556,6 +551,9 @@ def graph_3d_state_estimate_vs_ideal(project_directory_plot, logging_rows, ideal
     ax.grid(True)
     ax.view_init(elev=25, azim=135)
 
+    ax.set_box_aspect([1, 1, 1])  # Equal scaling for x, y, z
+    ax.set_zlim(0, 2)  # Expand vertical axis to ensure Z=1.5 is correctly rendered
+
     path = os.path.join(project_directory_plot, f"{run_id}_3d_state_estimate_vs_ideal.svg")
     plt.tight_layout()
     plt.savefig(path, format='svg')
@@ -566,10 +564,6 @@ def graph_3d_state_estimate_vs_ideal(project_directory_plot, logging_rows, ideal
 # For square turns flights from center 
 '''
 def graph_3d_state_estimate_vs_ideal(project_directory_plot, logging_rows, ideal_coords, run_id):
-    import matplotlib.pyplot as plt
-    from mpl_toolkits.mplot3d import Axes3D
-    import os
-
     x_actual = [row["x"] for row in logging_rows]
     y_actual = [row["y"] for row in logging_rows]
     z_actual = [row["z"] for row in logging_rows]
@@ -861,9 +855,9 @@ def drone_logging_position_multi_ranger(scf, log_multi_ranger, log_dict_ranger, 
     FRONT_BOUND = 2.159 + offset
     TOP_BOUND = 3.239
 
-    x_tolerance = 2.0
-    y_tolerance = 2.0
-    z_tolerance = 4.0
+    x_tolerance = 2.25
+    y_tolerance = 2.25
+    z_tolerance = 2.25
 
     with SyncLogger(scf, log_multi_ranger) as logger:
         end_time = time.time() + 80
@@ -876,28 +870,24 @@ def drone_logging_position_multi_ranger(scf, log_multi_ranger, log_dict_ranger, 
             timestamp = log_entry[0]
             data = log_entry[1]
 
-            front = data.get('range.front') / 1000.0
-            back = data.get('range.back') / 1000.0
-            left = data.get('range.left') / 1000.0
-            right = data.get('range.right') / 1000.0
-            up = data.get('range.up') / 1000.0
-
-            '''
-            if None in (front, back, left, right, up):
-                print(f"[{timestamp}] Invalid range reading(s), skipping.")
+            try:
+                front = data.get('range.front') / 1000.0
+                back = data.get('range.back') / 1000.0
+                left = data.get('range.left') / 1000.0
+                right = data.get('range.right') / 1000.0
+                up = data.get('range.up') / 1000.0
+            except (TypeError, ValueError):
+                print(f"[{timestamp}] Type error in range data, skipping.")
                 continue
-            '''
 
             # Infer position within known cube bounds
             mx = RIGHT_BOUND - right
             my = FRONT_BOUND - front
             mz = TOP_BOUND - up
-
-            '''
+            
             if abs(mx) > x_tolerance or abs(my) > y_tolerance or abs(mz) > z_tolerance:
                 print(f"[{timestamp}] Invalid position detected, skipping logging.")
                 continue
-            '''
 
             dmx, dmy, dmz = compute_drift_from_path((mx, my, mz), waypoints)
 
@@ -940,7 +930,7 @@ def drone_logging_position_multi_ranger(scf, log_multi_ranger, log_dict_ranger, 
 if __name__ == '__main__':
     cflib.crtp.init_drivers()
 
-    run_id = "run2"
+    run_id = "run1"
 
     log_dict_state = {}
     log_dict_ranger = {}
@@ -1030,9 +1020,9 @@ if __name__ == '__main__':
         ideal_coords_state = [
             (0, 0, 0),
             (0, 0, 1.5), 
-            (1.2, 0, 1.5),
-            (1.2, -1.2, 1.5),
-            (0, -1.2, 1.5)
+            (0, 1.2, 1.5),
+            (1.2, 1.2, 1.5),
+            (1.2, 0, 1.5)
         ]
 
         ideal_coords_ranger = [
