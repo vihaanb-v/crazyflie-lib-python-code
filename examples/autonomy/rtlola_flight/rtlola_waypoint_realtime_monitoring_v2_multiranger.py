@@ -518,16 +518,24 @@ def graph_multiranger_drift(project_directory_plot, ranger_rows, run_id):
 # For random waypoint flights & square turns flight from corners
 #'''
 def graph_3d_state_estimate_vs_ideal(project_directory_plot, logging_rows, ideal_coords, run_id):
-    x_actual = [row["x"] for row in logging_rows]
-    y_actual = [row["y"] for row in logging_rows]
-    z_actual = [row["z"] for row in logging_rows]
+    # Convert stateEstimate logs to real-world coordinates
+    x_actual = [-row["y"] for row in logging_rows]  # State y → -x (real)
+    y_actual = [-row["x"] for row in logging_rows]   # State x → +y (real)
+    z_actual = [row["z"] for row in logging_rows]   # Z stays the same
 
+    # Ideal coordinates are already in real-world space
     x_ideal, y_ideal, z_ideal = zip(*ideal_coords[:5])
     print({"x_ideal": x_ideal, "y_ideal": y_ideal, "z_ideal": z_ideal})
 
+    # Close the loop for ideal path visualization
     x_ideal_loop = list(x_ideal) + [x_ideal[1]]
     y_ideal_loop = list(y_ideal) + [y_ideal[1]]
     z_ideal_loop = list(z_ideal) + [z_ideal[1]]
+
+    # Plotting
+    import matplotlib.pyplot as plt
+    from mpl_toolkits.mplot3d import Axes3D
+    import os
 
     fig = plt.figure(figsize=(18, 14))
     ax = fig.add_subplot(111, projection='3d')
@@ -826,23 +834,37 @@ def drone_logging_position_state_estimate(scf, log_state_estimate, log_dict_stat
                   f"Orient Drift: (droll = {droll:.2f}, dpitch = {dpitch:.2f}, dyaw = {dyaw:.2f})")
             
             display_verdict_triggers(verdict)
-            
+
+def safe_read(data, key):
+    MAX_VALID_RANGE = 2.5 
+    val = data.get(key, None)
+    try:
+        val = float(val)
+        if val <= 0.0 or val == float('inf') or val != val:  # Reject <=0, inf, nan
+            return None
+        if val > MAX_VALID_RANGE:
+            return None
+        return float(f"{val:.3f}")
+    except (ValueError, TypeError):
+        return None
+
 def drone_logging_position_multi_ranger(scf, log_multi_ranger, log_dict_ranger, waypoints):
     takeoff_started.wait()
 
-    LEFT_BOUND = -2.413
-    RIGHT_BOUND = 2.413
-    BACK_BOUND = -2.159
-    FRONT_BOUND = 2.159
+    # Offset if using square-from-corner flight
+    offset = 0.6
+    LEFT_BOUND = -2.413 + offset
+    RIGHT_BOUND = 2.413 + offset
+    BACK_BOUND = -2.159 + offset
+    FRONT_BOUND = 2.159 + offset
     TOP_BOUND = 3.239
 
-    x_tolerance = 1.2
-    y_tolerance = 1.2
+    x_tolerance = 2.0
+    y_tolerance = 2.0
     z_tolerance = 4.0
 
     with SyncLogger(scf, log_multi_ranger) as logger:
         end_time = time.time() + 80
-        
         time.sleep(2)
 
         for log_entry in logger:
@@ -852,19 +874,23 @@ def drone_logging_position_multi_ranger(scf, log_multi_ranger, log_dict_ranger, 
             timestamp = log_entry[0]
             data = log_entry[1]
 
-            front = data['range.front'] / 1000.0
-            back = data['range.back'] / 1000.0
-            left = data['range.left'] / 1000.0
-            right = data['range.right'] / 1000.0
-            up = data['range.up'] / 1000.0
+            front = safe_read(data, 'range.front')
+            back = safe_read(data, 'range.back')
+            left = safe_read(data, 'range.left')
+            right = safe_read(data, 'range.right')
+            up = safe_read(data, 'range.up')
 
-            # Infer position within known box
+            if None in (front, back, left, right, up):
+                print(f"[{timestamp}] Invalid range reading(s), skipping.")
+                continue
+
+            # Infer position within known cube bounds
             mx = RIGHT_BOUND - right
             my = FRONT_BOUND - front
             mz = TOP_BOUND - up
 
             if abs(mx) > x_tolerance or abs(my) > y_tolerance or abs(mz) > z_tolerance:
-                print("Invalid position detected, skipping logging.")
+                print(f"[{timestamp}] Invalid position detected, skipping logging.")
                 continue
 
             dmx, dmy, dmz = compute_drift_from_path((mx, my, mz), waypoints)
@@ -886,7 +912,6 @@ def drone_logging_position_multi_ranger(scf, log_multi_ranger, log_dict_ranger, 
                 val = getattr(verdict, name)
                 return ctypes.string_at(val).decode() if present and val else ""
 
-            # Create and log the data for this timestamp
             log_dict_ranger[timestamp] = {
                 "timestamp": timestamp,
                 "mx": mx, "my": my, "mz": mz,
@@ -903,13 +928,13 @@ def drone_logging_position_multi_ranger(scf, log_multi_ranger, log_dict_ranger, 
 
             print(f"[{timestamp}] MultiRanger Pos: ({mx:.2f}, {my:.2f}, {mz:.2f}) | "
                   f"Drift: (mdx = {dmx:.2f}, mdy = {dmy:.2f}, mdz = {dmz:.2f})")
-            
+
             display_verdict_triggers(verdict)
 
 if __name__ == '__main__':
     cflib.crtp.init_drivers()
 
-    run_id = "run4"
+    run_id = "run2"
 
     log_dict_state = {}
     log_dict_ranger = {}
@@ -996,23 +1021,31 @@ if __name__ == '__main__':
 
         # For square turns flight from corners
         # '''
-        ideal_coords = [
+        ideal_coords_state = [
             (0, 0, 0),
             (0, 0, 1.5), 
-            (-1.2, 0, 1.5),
-            (-1.2, 1.2, 1.5),
-            (0, 1.2, 1.5)
+            (1.2, 0, 1.5),
+            (1.2, -1.2, 1.5),
+            (0, -1.2, 1.5)
+        ]
+
+        ideal_coords_ranger = [
+            (0, 0, 0),
+            (0, 0, 1.5), 
+            (0, 1.2, 1.5),
+            (1.2, 1.2, 1.5),
+            (1.2, 0, 1.5)
         ]
         # '''
 
         state_estimate_thread = threading.Thread(
             target=drone_logging_position_state_estimate,
-            args=(scf, log_state_estimate, log_dict_state, ideal_coords)
+            args=(scf, log_state_estimate, log_dict_state, ideal_coords_state)
         )
 
         multi_ranger_thread = threading.Thread(
             target=drone_logging_position_multi_ranger,
-            args=(scf, log_multi_ranger, log_dict_ranger, ideal_coords)
+            args=(scf, log_multi_ranger, log_dict_ranger, ideal_coords_ranger)
         )
 
         flight_thread.start()
@@ -1032,7 +1065,7 @@ if __name__ == '__main__':
         graph_state_estimate_drift(project_dir_plot, state_rows, run_id)
         graph_multiranger_drift(project_dir_plot, ranger_rows, run_id)
 
-        graph_3d_state_estimate_vs_ideal(project_dir_plot, state_rows, ideal_coords, run_id)
-        graph_3d_multiranger_vs_ideal(project_dir_plot, ranger_rows, ideal_coords, run_id)
+        graph_3d_state_estimate_vs_ideal(project_dir_plot, state_rows, ideal_coords_state, run_id)
+        graph_3d_multiranger_vs_ideal(project_dir_plot, ranger_rows, ideal_coords_ranger, run_id)
 
         print("Logging & flight completed.")
