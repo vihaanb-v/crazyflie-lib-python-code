@@ -520,7 +520,7 @@ def graph_multiranger_drift(project_directory_plot, ranger_rows, run_id):
 def graph_3d_state_estimate_vs_ideal(project_directory_plot, logging_rows, ideal_coords, run_id):
     # Convert stateEstimate logs to real-world coordinates
     x_actual = [-row["y"] for row in logging_rows]  # State y → -x (real)
-    y_actual = [-row["x"] for row in logging_rows]   # State x → +y (real)
+    y_actual = [row["x"] for row in logging_rows]   # State x → +y (real)
     z_actual = [row["z"] for row in logging_rows]   # Z stays the same
 
     # Ideal coordinates are already in real-world space
@@ -835,6 +835,7 @@ def drone_logging_position_state_estimate(scf, log_state_estimate, log_dict_stat
             
             display_verdict_triggers(verdict)
 
+'''
 def safe_read(data, key):
     MAX_VALID_RANGE = 2.5 
     val = data.get(key, None)
@@ -847,6 +848,7 @@ def safe_read(data, key):
         return float(f"{val:.3f}")
     except (ValueError, TypeError):
         return None
+'''
 
 def drone_logging_position_multi_ranger(scf, log_multi_ranger, log_dict_ranger, waypoints):
     takeoff_started.wait()
@@ -874,24 +876,28 @@ def drone_logging_position_multi_ranger(scf, log_multi_ranger, log_dict_ranger, 
             timestamp = log_entry[0]
             data = log_entry[1]
 
-            front = safe_read(data, 'range.front')
-            back = safe_read(data, 'range.back')
-            left = safe_read(data, 'range.left')
-            right = safe_read(data, 'range.right')
-            up = safe_read(data, 'range.up')
+            front = data.get('range.front') / 1000.0
+            back = data.get('range.back') / 1000.0
+            left = data.get('range.left') / 1000.0
+            right = data.get('range.right') / 1000.0
+            up = data.get('range.up') / 1000.0
 
+            '''
             if None in (front, back, left, right, up):
                 print(f"[{timestamp}] Invalid range reading(s), skipping.")
                 continue
+            '''
 
             # Infer position within known cube bounds
             mx = RIGHT_BOUND - right
             my = FRONT_BOUND - front
             mz = TOP_BOUND - up
 
+            '''
             if abs(mx) > x_tolerance or abs(my) > y_tolerance or abs(mz) > z_tolerance:
                 print(f"[{timestamp}] Invalid position detected, skipping logging.")
                 continue
+            '''
 
             dmx, dmy, dmz = compute_drift_from_path((mx, my, mz), waypoints)
 
