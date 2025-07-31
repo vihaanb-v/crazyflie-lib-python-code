@@ -336,21 +336,13 @@ def square_turns_starting_at_corner(scf, velocity):
     with MotionCommander(scf, default_height=DEFAULT_HEIGHT) as mc:
         #Code using turns from bottom right corner of square
         time.sleep(3)
-        mc.forward(1.2, velocity=velocity)
+        mc.move_distance(1.2, 0, 0, velocity=velocity)
         time.sleep(3)
-        mc.turn_right(90)
+        mc.move_distance(0, -1.2, 0, velocity=velocity)
         time.sleep(3)
-        mc.forward(1.2, velocity=velocity)
+        mc.move_distance(-1.2, 0, 0, velocity=velocity)
         time.sleep(3)
-        mc.turn_right(90)
-        time.sleep(3)
-        mc.forward(1.2, velocity=velocity)
-        time.sleep(3)
-        mc.turn_right(90)
-        time.sleep(3)
-        mc.forward(1.2, velocity=velocity)
-        time.sleep(3)
-        mc.turn_right(90)
+        mc.move_distance(0, 1.2, 0, velocity=velocity)
         time.sleep(3)
         mc.stop()
         
@@ -713,7 +705,73 @@ def graph_3d_multiranger_vs_ideal(project_directory_plot, multiranger_rows, idea
     plt.close()
     print(f"Saved multiranger vs. ideal trajectory plot to: {path}")
 '''
-    
+
+def plot_state_estimate_xyz_vs_time(state_rows, run_id, save_path):
+    times = [row["timestamp"] / 1000.0 for row in state_rows]
+    x_vals = [row["x"] for row in state_rows]
+    y_vals = [row["y"] for row in state_rows]
+    z_vals = [row["z"] for row in state_rows]
+
+    plt.figure(figsize=(14, 8))
+    plt.plot(times, x_vals, label='X (mx)', color='red', linewidth=2)
+    plt.plot(times, y_vals, label='Y (my)', color='green', linewidth=2)
+    plt.plot(times, z_vals, label='Z (mz)', color='blue', linewidth=2)
+
+    plt.title(f'State Estimate X/Y/Z vs. Time — {run_id}', fontsize=16)
+    plt.xlabel('Time (s)', fontsize=14)
+    plt.ylabel('Distance (m)', fontsize=14)
+    plt.legend()
+    plt.grid(True)
+    plt.tight_layout()
+
+    plt.savefig(save_path, dpi=300)
+
+    print(f"Saved plot to {save_path}")
+
+def plot_multiranger_xyz_vs_time(ranger_rows, run_id, save_path):
+    times = [row["timestamp"] / 1000.0 for row in ranger_rows]
+    x_vals = [row["mx"] for row in ranger_rows]
+    y_vals = [row["my"] for row in ranger_rows]
+    z_vals = [row["mz"] for row in ranger_rows]
+
+    plt.figure(figsize=(14, 8))
+    plt.plot(times, x_vals, label='X (mx)', color='red', linewidth=2)
+    plt.plot(times, y_vals, label='Y (my)', color='green', linewidth=2)
+    plt.plot(times, z_vals, label='Z (mz)', color='blue', linewidth=2)
+
+    plt.title(f'MultiRanger X/Y/Z vs. Time — {run_id}', fontsize=16)
+    plt.xlabel('Time (s)', fontsize=14)
+    plt.ylabel('Distance (m)', fontsize=14)
+    plt.legend()
+    plt.grid(True)
+    plt.tight_layout()
+
+    plt.savefig(save_path, dpi=300)
+
+    print(f"Saved plot to {save_path}")
+
+def plot_muliranger_raw_xyz_vs_time(ranger_rows, run_id, save_path):
+    times = [row["timestamp"] / 1000.0 for row in ranger_rows]
+    x_vals = [row["right"] for row in ranger_rows]
+    y_vals = [row["front"] for row in ranger_rows]
+    z_vals = [row["up"] for row in ranger_rows]
+
+    plt.figure(figsize=(14, 8))
+    plt.plot(times, x_vals, label='X (mx)', color='red', linewidth=2)
+    plt.plot(times, y_vals, label='Y (my)', color='green', linewidth=2)
+    plt.plot(times, z_vals, label='Z (mz)', color='blue', linewidth=2)
+
+    plt.title(f'MultiRanger X/Y/Z vs. Time — {run_id}', fontsize=16)
+    plt.xlabel('Time (s)', fontsize=14)
+    plt.ylabel('Distance (m)', fontsize=14)
+    plt.legend()
+    plt.grid(True)
+    plt.tight_layout()
+
+    plt.savefig(save_path, dpi=300)
+
+    print(f"Saved plot to {save_path}")
+
 def closest_point_on_segment(p, a, b):
     p = np.array(p)
     a = np.array(a)
@@ -752,7 +810,7 @@ def drone_logging_position_state_estimate(scf, log_state_estimate, log_dict_stat
     roll0 = pitch0 = yaw0 = None
 
     with SyncLogger(scf, log_state_estimate) as logger:
-        end_time = time.time() + 80
+        end_time = time.time() + 60
 
         time.sleep(2)
 
@@ -849,18 +907,18 @@ def drone_logging_position_multi_ranger(scf, log_multi_ranger, log_dict_ranger, 
 
     # Offset if using square-from-corner flight
     offset = 0.6
-    LEFT_BOUND = -2.413 + offset
-    RIGHT_BOUND = 2.413 + offset
-    BACK_BOUND = -2.159 + offset
-    FRONT_BOUND = 2.159 + offset
-    TOP_BOUND = 3.239
+    LEFT_BOUND = -2.42 + offset
+    RIGHT_BOUND = 2.42 + offset
+    BACK_BOUND = -2.16 + offset
+    FRONT_BOUND = 2.16 + offset
+    TOP_BOUND = 3.24
 
     x_tolerance = 2.25
     y_tolerance = 2.25
     z_tolerance = 2.25
 
     with SyncLogger(scf, log_multi_ranger) as logger:
-        end_time = time.time() + 80
+        end_time = time.time() + 60
         time.sleep(2)
 
         for log_entry in logger:
@@ -871,19 +929,27 @@ def drone_logging_position_multi_ranger(scf, log_multi_ranger, log_dict_ranger, 
             data = log_entry[1]
 
             try:
+                '''
                 front = data.get('range.front') / 1000.0
                 back = data.get('range.back') / 1000.0
                 left = data.get('range.left') / 1000.0
                 right = data.get('range.right') / 1000.0
                 up = data.get('range.up') / 1000.0
+                '''
+
+                front = float(f"{data.get('range.front') / 1000.0:.2f}")
+                back = float(f"{data.get('range.back') / 1000.0:.2f}")
+                left = float(f"{data.get('range.left') / 1000.0:.2f}")
+                right = float(f"{data.get('range.right') / 1000.0:.2f}")
+                up = float(f"{data.get('range.up') / 1000.0:.2f}")
             except (TypeError, ValueError):
                 print(f"[{timestamp}] Type error in range data, skipping.")
                 continue
 
             # Infer position within known cube bounds
-            mx = RIGHT_BOUND - right
-            my = FRONT_BOUND - front
-            mz = TOP_BOUND - up
+            mx = float(f"{(RIGHT_BOUND - right):.2f}")
+            my = float(f"{(FRONT_BOUND - front):.2f}")
+            mz = float(f"{(TOP_BOUND - up):.2f}")
             
             if abs(mx) > x_tolerance or abs(my) > y_tolerance or abs(mz) > z_tolerance:
                 print(f"[{timestamp}] Invalid position detected, skipping logging.")
@@ -920,6 +986,7 @@ def drone_logging_position_multi_ranger(scf, log_multi_ranger, log_dict_ranger, 
                 "multi_ranger_y_drift_trigger": get_trigger("trigger_7"),
                 "multi_ranger_z_drift_exceeded": int(get_val("multi_ranger_z_drift_exceeded")),
                 "multi_ranger_z_drift_trigger": get_trigger("trigger_8"),
+                "right": right, "front": front, "up": up,
             }
 
             print(f"[{timestamp}] MultiRanger Pos: ({mx:.2f}, {my:.2f}, {mz:.2f}) | "
@@ -1063,5 +1130,10 @@ if __name__ == '__main__':
 
         graph_3d_state_estimate_vs_ideal(project_dir_plot, state_rows, ideal_coords_state, run_id)
         graph_3d_multiranger_vs_ideal(project_dir_plot, ranger_rows, ideal_coords_ranger, run_id)
+
+        plot_state_estimate_xyz_vs_time(state_rows, run_id, os.path.join(project_dir_plot, f"{run_id}_state_xyz_vs_time.png"))
+        plot_multiranger_xyz_vs_time(ranger_rows, run_id, os.path.join(project_dir_plot, f"{run_id}_multi_ranger_xyz_vs_time.png"))
+
+        plot_muliranger_raw_xyz_vs_time(ranger_rows, run_id, os.path.join(project_dir_plot, f"{run_id}_multi_ranger_raw_xyz_vs_time.png"))
 
         print("Logging & flight completed.")
