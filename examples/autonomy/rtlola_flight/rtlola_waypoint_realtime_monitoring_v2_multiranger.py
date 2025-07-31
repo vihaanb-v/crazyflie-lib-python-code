@@ -171,6 +171,7 @@ import sys
 import threading
 from threading import Timer
 from threading import Event
+from threading import Lock
 from queue import Queue
 
 import cflib.crtp
@@ -200,6 +201,8 @@ logging.basicConfig(level=logging.ERROR)
 memory_instance = Memory()
 
 takeoff_started = threading.Event()
+
+position_ready = threading.Event()
 
 def send_state_to_monitor(x_val, x0, y_val, y0, mx_val, mx0, my_val, my0, mz_val, mz0, timestamp):
     x_drift_val = x_val - x0
@@ -388,6 +391,65 @@ def square_turns_starting_at_center(scf, velocity):
         time.sleep(3)
         mc.turn_left(180)
         time.sleep(3)
+        mc.stop()
+        
+    print("Touchdown.")
+
+def square_turns_starting_at_corner_with_multiranger(scf, position_lock, shared_position):
+    print("Coordinate 1 (Takeoff): (0, 0, 0)")
+    print("Coordinate 2 (Hover): (0, 0, 1.5)")
+    print("Coordinate 3: (0, 1.2, 1.5)")
+    print("Coordinate 4: (1.2, 1.2, 1.5)")
+    print("Coordinate 5: (1.2, 0, 1.5)")
+    print("Coordinate 6 (RTH): (0, 0, 1.5)")
+    print("Coordinate 7 (Landing): (0, 0, 0)")
+
+    print("Takeoff.")
+    takeoff_started.set()
+
+    with MotionCommander(scf, default_height=DEFAULT_HEIGHT) as mc:
+        position_ready.wait()
+        time.sleep(3)
+        mc.start_linear_motion(0.3, 0.0, 0.0)
+        while True:
+            with position_lock:
+                my = shared_position["my"]
+            if my >= 1.2:
+                break
+            time.sleep(0.01)
+            
+        time.sleep(3)
+
+        mc.start_linear_motion(0.0, -0.3, 0.0)
+        while True:
+            with position_lock:
+                mx = shared_position["mx"]
+            if mx >= 1.2:
+                break
+            time.sleep(0.01)
+            
+        time.sleep(3)
+
+        mc.start_linear_motion(-0.3, 0.0, 0.0)
+        while True:
+            with position_lock:
+                my = shared_position["my"]
+            if my <= 0.00:
+                break
+            time.sleep(0.01)
+            
+        time.sleep(3)
+
+        mc.start_linear_motion(0.0, 0.3, 0.0)
+        while True:
+            with position_lock:
+                mx = shared_position["mx"]
+            if mx <= 0.00:
+                break
+            time.sleep(0.01)
+            
+        time.sleep(3)
+
         mc.stop()
         
     print("Touchdown.")
@@ -810,7 +872,7 @@ def drone_logging_position_state_estimate(scf, log_state_estimate, log_dict_stat
     roll0 = pitch0 = yaw0 = None
 
     with SyncLogger(scf, log_state_estimate) as logger:
-        end_time = time.time() + 60
+        end_time = time.time() + 55
 
         time.sleep(2)
 
@@ -902,7 +964,7 @@ def safe_read(data, key):
         return None
 '''
 
-def drone_logging_position_multi_ranger(scf, log_multi_ranger, log_dict_ranger, waypoints):
+def drone_logging_position_multi_ranger(scf, log_multi_ranger, log_dict_ranger, waypoints, position_lock, shared_position):
     takeoff_started.wait()
 
     # Offset if using square-from-corner flight
@@ -918,7 +980,7 @@ def drone_logging_position_multi_ranger(scf, log_multi_ranger, log_dict_ranger, 
     z_tolerance = 2.25
 
     with SyncLogger(scf, log_multi_ranger) as logger:
-        end_time = time.time() + 60
+        end_time = time.time() + 55
         time.sleep(2)
 
         for log_entry in logger:
@@ -954,6 +1016,13 @@ def drone_logging_position_multi_ranger(scf, log_multi_ranger, log_dict_ranger, 
             if abs(mx) > x_tolerance or abs(my) > y_tolerance or abs(mz) > z_tolerance:
                 print(f"[{timestamp}] Invalid position detected, skipping logging.")
                 continue
+
+            with position_lock:
+                shared_position["mx"] = mx
+                shared_position["my"] = my
+                shared_position["mz"] = mz
+                if not position_ready.is_set():
+                    position_ready.set()
 
             dmx, dmy, dmz = compute_drift_from_path((mx, my, mz), waypoints)
 
@@ -997,7 +1066,7 @@ def drone_logging_position_multi_ranger(scf, log_multi_ranger, log_dict_ranger, 
 if __name__ == '__main__':
     cflib.crtp.init_drivers()
 
-    run_id = "run1"
+    run_id = "run5"
 
     log_dict_state = {}
     log_dict_ranger = {}
@@ -1038,10 +1107,14 @@ if __name__ == '__main__':
         log_multi_ranger.add_variable('range.left', 'float')
         log_multi_ranger.add_variable('range.right', 'float')
 
+        shared_position = {"mx": 0.0, "my": 0.0, "mz": 0.0}
+        position_lock = Lock()
+
         def flight_wrapper():
             #ideal_coords_holder["coords"] = waypoint_flight(scf, False)
             #square_turns_starting_at_center(scf, 0.3)
-            square_turns_starting_at_corner(scf, 0.3)
+            #square_turns_starting_at_corner(scf, 0.8)
+            square_turns_starting_at_corner_with_multiranger(scf, position_lock, shared_position)
 
         flight_thread = threading.Thread(target=flight_wrapper)
 
@@ -1108,16 +1181,16 @@ if __name__ == '__main__':
 
         multi_ranger_thread = threading.Thread(
             target=drone_logging_position_multi_ranger,
-            args=(scf, log_multi_ranger, log_dict_ranger, ideal_coords_ranger)
+            args=(scf, log_multi_ranger, log_dict_ranger, ideal_coords_ranger, position_lock, shared_position)
         )
 
+        multi_ranger_thread.start()
         flight_thread.start()
         state_estimate_thread.start()
-        multi_ranger_thread.start()
 
+        multi_ranger_thread.join()
         flight_thread.join()
         state_estimate_thread.join()
-        multi_ranger_thread.join()
 
         state_rows = list(log_dict_state.values())
         ranger_rows = list(log_dict_ranger.values())
