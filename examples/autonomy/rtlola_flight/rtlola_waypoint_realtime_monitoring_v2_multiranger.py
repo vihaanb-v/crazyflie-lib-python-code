@@ -76,7 +76,6 @@ class Memory(Structure):
         ("time", c_double)
     ]
 
-
 class InternalEvent(Structure):
     _fields_ = [
         ("x_drift", c_double), ("x_drift_is_present", c_bool),
@@ -90,7 +89,6 @@ class InternalEvent(Structure):
         ("multi_ranger_z_drift", c_double), ("multi_ranger_z_drift_is_present", c_bool),
         ("time", c_double),
     ]
-
 
 class Verdict(Structure):
     _fields_ = [
@@ -201,8 +199,15 @@ logging.basicConfig(level=logging.ERROR)
 memory_instance = Memory()
 
 takeoff_started = threading.Event()
+takeoff_ended = threading.Event()
 
 position_ready = threading.Event()
+
+mx_right_ready = threading.Event()
+mx_left_ready = threading.Event()
+
+#my_front_ready = threading.Event()
+my_back_ready = threading.Event()
 
 def send_state_to_monitor(x_val, x0, y_val, y0, mx_val, mx0, my_val, my0, mz_val, mz0, timestamp):
     x_drift_val = x_val - x0
@@ -282,7 +287,9 @@ def waypoint_flight(scf, rnd):
         print("Coordinate 7 (Landing): (0, 0, 0)")
 
         print("Takeoff.")
+        
         takeoff_started.set()
+        
         with MotionCommander(scf, default_height=DEFAULT_HEIGHT) as mc:
             time.sleep(5)
             mc.move_distance(x_pos[0], y_pos[0], z_pos[0] - 1, velocity=1.5)
@@ -309,7 +316,9 @@ def waypoint_flight(scf, rnd):
         print("Coordinate 7 (Landing): (0, 0, 0)")
 
         print("Takeoff.")
+
         takeoff_started.set()
+
         with MotionCommander(scf, default_height=DEFAULT_HEIGHT) as mc:
             time.sleep(5)
             mc.move_distance(-0.6, 0.6, -0.3, velocity=1.0)
@@ -334,6 +343,7 @@ def square_turns_starting_at_corner(scf, velocity):
     print("Coordinate 7 (Landing): (0, 0, 0)")
 
     print("Takeoff.")
+
     takeoff_started.set()
     
     with MotionCommander(scf, default_height=DEFAULT_HEIGHT) as mc:
@@ -364,6 +374,7 @@ def square_turns_starting_at_center(scf, velocity):
     print("Coordinate 10 (Landing): (0, 0, 0)")
 
     print("Takeoff.")
+
     takeoff_started.set()
     
     with MotionCommander(scf, default_height=DEFAULT_HEIGHT) as mc:
@@ -405,52 +416,64 @@ def square_turns_starting_at_corner_with_multiranger(scf, position_lock, shared_
     print("Coordinate 7 (Landing): (0, 0, 0)")
 
     print("Takeoff.")
+
     takeoff_started.set()
 
     with MotionCommander(scf, default_height=DEFAULT_HEIGHT) as mc:
         position_ready.wait()
         time.sleep(3)
+
         mc.start_linear_motion(0.3, 0.0, 0.0)
         while True:
             with position_lock:
                 my = shared_position["my"]
-            if my >= 1.2:
+            if my >= 1.18:
+                mc.stop()
+                time.sleep(3)
                 break
-            time.sleep(0.01)
-            
-        time.sleep(3)
+            time.sleep(0.005)
 
+        mx_right_ready.set()
+
+        time.sleep(1)
+        
         mc.start_linear_motion(0.0, -0.3, 0.0)
         while True:
             with position_lock:
                 mx = shared_position["mx"]
-            if mx >= 1.2:
+            if mx >= 1.18:
+                mc.stop()
+                time.sleep(3)
                 break
-            time.sleep(0.01)
-            
-        time.sleep(3)
+            time.sleep(0.005)
+
+        my_back_ready.set()
+        time.sleep(1)
 
         mc.start_linear_motion(-0.3, 0.0, 0.0)
         while True:
             with position_lock:
                 my = shared_position["my"]
-            if my <= 0.00:
+            if my <= 0.02:
+                mc.stop()
+                time.sleep(3)
                 break
-            time.sleep(0.01)
-            
-        time.sleep(3)
+            time.sleep(0.005)
 
+        mx_left_ready.set()
+        time.sleep(1)
+            
         mc.start_linear_motion(0.0, 0.3, 0.0)
         while True:
             with position_lock:
                 mx = shared_position["mx"]
-            if mx <= 0.00:
+            if mx <= 0.02:
+                mc.stop()
+                time.sleep(3)
                 break
-            time.sleep(0.01)
-            
-        time.sleep(3)
+            time.sleep(0.005)
 
-        mc.stop()
+        takeoff_ended.set()
         
     print("Touchdown.")
 
@@ -872,7 +895,7 @@ def drone_logging_position_state_estimate(scf, log_state_estimate, log_dict_stat
     roll0 = pitch0 = yaw0 = None
 
     with SyncLogger(scf, log_state_estimate) as logger:
-        end_time = time.time() + 55
+        end_time = time.time() + 75
 
         time.sleep(2)
 
@@ -968,11 +991,11 @@ def drone_logging_position_multi_ranger(scf, log_multi_ranger, log_dict_ranger, 
     takeoff_started.wait()
 
     # Offset if using square-from-corner flight
-    offset = 0.6
-    LEFT_BOUND = -2.42 + offset
-    RIGHT_BOUND = 2.42 + offset
-    BACK_BOUND = -2.16 + offset
-    FRONT_BOUND = 2.16 + offset
+    offset = 0.64
+    RIGHT_BOUND = 2.19 + offset
+    FRONT_BOUND = 2.57 + offset
+    LEFT_BOUND = 2.19 - offset
+    BACK_BOUND = 2.57 - offset  
     TOP_BOUND = 3.24
 
     x_tolerance = 2.25
@@ -980,25 +1003,16 @@ def drone_logging_position_multi_ranger(scf, log_multi_ranger, log_dict_ranger, 
     z_tolerance = 2.25
 
     with SyncLogger(scf, log_multi_ranger) as logger:
-        end_time = time.time() + 55
         time.sleep(2)
 
         for log_entry in logger:
-            if time.time() >= end_time:
+            if takeoff_ended.is_set():
                 break
 
             timestamp = log_entry[0]
             data = log_entry[1]
 
             try:
-                '''
-                front = data.get('range.front') / 1000.0
-                back = data.get('range.back') / 1000.0
-                left = data.get('range.left') / 1000.0
-                right = data.get('range.right') / 1000.0
-                up = data.get('range.up') / 1000.0
-                '''
-
                 front = float(f"{data.get('range.front') / 1000.0:.2f}")
                 back = float(f"{data.get('range.back') / 1000.0:.2f}")
                 left = float(f"{data.get('range.left') / 1000.0:.2f}")
@@ -1009,21 +1023,41 @@ def drone_logging_position_multi_ranger(scf, log_multi_ranger, log_dict_ranger, 
                 continue
 
             # Infer position within known cube bounds
-            mx = float(f"{(RIGHT_BOUND - right):.2f}")
-            my = float(f"{(FRONT_BOUND - front):.2f}")
+            # mx = float(f"{(RIGHT_BOUND - right):.2f}")
+            # my = float(f"{(FRONT_BOUND - front):.2f}")
+            # mz = float(f"{(TOP_BOUND - up):.2f}")
+            # print("Right: {f}, Left: {f}, Back: {f}.format(mx_right_ready=mx_right_ready, mx_left_ready=mx_left_ready, my_back_ready=my_back_ready)}")
+
+            if not mx_right_ready.is_set():
+                mx = float(f"{(left - LEFT_BOUND):.2f}")
+            elif mx_right_ready.is_set() and not mx_left_ready.is_set():
+                mx = float(f"{(RIGHT_BOUND - right):.2f}")
+            elif mx_left_ready.is_set():
+                mx = float(f"{(left - LEFT_BOUND):.2f}")
+
+            if not my_back_ready.is_set():
+                my = float(f"{(FRONT_BOUND - front):.2f}")
+            elif my_back_ready.is_set():
+                my = float(f"{(back - BACK_BOUND):.2f}")
+
             mz = float(f"{(TOP_BOUND - up):.2f}")
-            
-            if abs(mx) > x_tolerance or abs(my) > y_tolerance or abs(mz) > z_tolerance:
-                print(f"[{timestamp}] Invalid position detected, skipping logging.")
-                continue
+
+            #print(f"(Multiranger Raw Position: {mx:.2f}, {my:.2f}, {mz:.2f})")
 
             with position_lock:
-                shared_position["mx"] = mx
-                shared_position["my"] = my
-                shared_position["mz"] = mz
+                if abs(mx) <= x_tolerance:
+                    shared_position["mx"] = mx
+                if abs(my) <= y_tolerance:
+                    shared_position["my"] = my
+                if abs(mz) <= z_tolerance:
+                    shared_position["mz"] = mz
                 if not position_ready.is_set():
                     position_ready.set()
-
+            
+            if abs(mx) > x_tolerance or abs(my) > y_tolerance or abs(mz) > z_tolerance:
+                print(f"[{timestamp}] Invalid position ({mx:.2f}, {my:.2f}, {mz:.2f}) detected, skipping logging.")
+                continue
+            
             dmx, dmy, dmz = compute_drift_from_path((mx, my, mz), waypoints)
 
             event = create_event(
