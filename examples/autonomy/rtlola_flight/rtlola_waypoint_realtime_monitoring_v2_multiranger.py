@@ -435,7 +435,9 @@ def square_turns_starting_at_corner_with_multiranger(scf, position_lock, shared_
 
         mx_right_ready.set()
 
-        time.sleep(1)
+        mc.stop()
+
+        time.sleep(2)
         
         mc.start_linear_motion(0.0, -0.3, 0.0)
         while True:
@@ -448,7 +450,10 @@ def square_turns_starting_at_corner_with_multiranger(scf, position_lock, shared_
             time.sleep(0.005)
 
         my_back_ready.set()
-        time.sleep(1)
+
+        mc.stop()
+
+        time.sleep(2)
 
         mc.start_linear_motion(-0.3, 0.0, 0.0)
         while True:
@@ -461,7 +466,10 @@ def square_turns_starting_at_corner_with_multiranger(scf, position_lock, shared_
             time.sleep(0.005)
 
         mx_left_ready.set()
-        time.sleep(1)
+
+        mc.stop()
+
+        time.sleep(2)
             
         mc.start_linear_motion(0.0, 0.3, 0.0)
         while True:
@@ -1015,12 +1023,11 @@ def drone_logging_position_state_estimate(scf, log_state_estimate, log_dict_stat
     roll0 = pitch0 = yaw0 = None
 
     with SyncLogger(scf, log_state_estimate) as logger:
-        end_time = time.time() + 75
 
         time.sleep(2)
 
         for log_entry in logger:
-            if time.time() >= end_time:
+            if takeoff_ended.is_set():
                 break
 
             timestamp = log_entry[0]
@@ -1220,7 +1227,7 @@ def drone_logging_position_multi_ranger(scf, log_multi_ranger, log_dict_ranger, 
 if __name__ == '__main__':
     cflib.crtp.init_drivers()
 
-    run_id = "run6"
+    run_id = "run10"
 
     log_dict_state = {}
     log_dict_ranger = {}
