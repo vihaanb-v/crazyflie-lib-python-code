@@ -477,6 +477,126 @@ def square_turns_starting_at_corner_with_multiranger(scf, position_lock, shared_
         
     print("Touchdown.")
 
+'''
+def square_turns_starting_at_corner_with_multiranger(scf, position_lock, shared_position):
+    print("Coordinate 1 (Takeoff): (0, 0, 0)")
+    print("Coordinate 2 (Hover): (0, 0, 1.5)")
+    print("Coordinate 3: (0, 1.2, 1.0)")
+    print("Coordinate 4: (1.2, 1.2, 1.5)")
+    print("Coordinate 5: (1.2, 0, 1.0)")
+    print("Coordinate 6 (RTH): (0, 0, 1.5)")
+    print("Coordinate 7 (Landing): (0, 0, 0)")
+
+    print("Takeoff.")
+
+    takeoff_started.set()
+
+    with MotionCommander(scf, default_height=DEFAULT_HEIGHT) as mc:
+        position_ready.wait()
+        time.sleep(3)
+
+        mc.start_linear_motion(0.3, 0.0, -0.3)
+
+        while True:
+            with position_lock:
+                my = shared_position["my"]
+                mz = shared_position["mz"]
+            if my >= 1.18 and mz >= 1.02:
+                mc.stop()
+                time.sleep(3)
+                break
+            elif my < 1.18 and mz >= 1.02:
+                mc.stop()
+                time.sleep(0.5)
+                mc.start_linear_motion(0.3, 0.0, 0.0)
+            elif my >= 1.18 and mz < 1.02:
+                mc.stop()
+                time.sleep(0.5)
+                mc.start_linear_motion(0.0, 0.0, -0.3)
+            
+            time.sleep(0.005)
+
+        mx_right_ready.set()
+
+        time.sleep(2)
+        
+        mc.start_linear_motion(0.0, -0.3, 0.3)
+
+        while True:
+            with position_lock:
+                mx = shared_position["mx"]
+                mz = shared_position["mz"]
+            if mx >= 1.18 and mz >= 1.48:
+                mc.stop()
+                time.sleep(3)
+                break
+            elif mx < 1.18 and mz >= 1.48:
+                mc.stop()
+                time.sleep(0.5)
+                mc.start_linear_motion(0.0, -0.3, 0.0)
+            elif mx >= 1.18 and mz < 1.48:
+                mc.stop()
+                time.sleep(0.5)
+                mc.start_linear_motion(0.0, 0.0, 0.3)
+
+            time.sleep(0.005)
+
+        my_back_ready.set()
+
+        time.sleep(2)
+
+        mc.start_linear_motion(-0.3, 0.0, -0.3)
+
+        while True:
+            with position_lock:
+                my = shared_position["my"]
+                mz = shared_position["mz"]
+            if my <= 0.02 and mz <= 1.02:
+                mc.stop()
+                time.sleep(3)
+                break
+            elif my > 0.02 and mz <= 1.02:
+                mc.stop()
+                time.sleep(0.5)
+                mc.start_linear_motion(-0.3, 0.0, 0.0)
+            elif my <= 0.02 and mz > 1.02:
+                mc.stop()
+                time.sleep(0.5)
+                mc.start_linear_motion(0.0, 0.0, -0.3)
+
+            time.sleep(0.005)
+
+        mx_left_ready.set()
+
+        time.sleep(2)
+            
+        mc.start_linear_motion(0.0, 0.3, 0.3)
+
+        while True:
+            with position_lock:
+                mx = shared_position["mx"]
+                mz = shared_position["mz"]
+            if mx <= 0.02 and mz >= 1.48:
+                mc.stop()
+                time.sleep(3)
+                break
+            elif mx > 0.02 and mz >= 1.48:
+                mc.stop()
+                time.sleep(0.5)
+                mc.start_linear_motion(0.0, 0.3, 0.0)
+            elif mx <= 0.02 and mz < 1.48:
+                mc.stop()
+                time.sleep(0.5)
+                mc.start_linear_motion(0.0, 0.0, 0.3)
+
+            time.sleep(0.005)
+
+        takeoff_ended.set()
+        
+    print("Touchdown.")
+'''
+
+
 def write_state_csv_log(full_csv_path_log, log_dict):
     headers = [
         "timestamp", "x", "y", "z",
@@ -1100,7 +1220,7 @@ def drone_logging_position_multi_ranger(scf, log_multi_ranger, log_dict_ranger, 
 if __name__ == '__main__':
     cflib.crtp.init_drivers()
 
-    run_id = "run5"
+    run_id = "run6"
 
     log_dict_state = {}
     log_dict_ranger = {}
@@ -1201,7 +1321,7 @@ if __name__ == '__main__':
 
         ideal_coords_ranger = [
             (0, 0, 0),
-            (0, 0, 1.5), 
+            (0, 0, 1.5),
             (0, 1.2, 1.5),
             (1.2, 1.2, 1.5),
             (1.2, 0, 1.5)
