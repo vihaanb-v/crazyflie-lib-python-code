@@ -3,7 +3,7 @@ from ctypes import CDLL, POINTER, Structure, c_double, c_int64, c_bool, c_char_p
 
 import time
 
-drift_lib = ctypes.CDLL("/home/bitcraze/projects/crazyflie-lib-python-code/rtlola/waypoint_monitor_simplified_v2/libmonitor.so")
+drift_lib = ctypes.CDLL("/home/bitcraze/projects/crazyflie-lib-python-code/rtlola/waypoint_monitor_enforcement/libmonitor.so")
 
 #Define all BoundedBuffer structures
 class BoundedBuffer_int64_t(ctypes.Structure):
@@ -210,6 +210,11 @@ mx_left_ready = threading.Event()
 my_back_ready = threading.Event()
 
 hover_established = threading.Event()
+
+autocorrect_position_x = threading.Event()
+autocorrect_position_y = threading.Event()
+autocorrect_position_z = threading.Event()
+
 
 def send_state_to_monitor(x_val, x0, y_val, y0, mx_val, mx0, my_val, my0, mz_val, mz0, timestamp):
     x_drift_val = x_val - x0
@@ -605,6 +610,38 @@ def square_turns_starting_at_corner_with_multiranger(scf, position_lock, shared_
         
     print("Touchdown.")
 '''
+
+def autocorrect_monitor(scf):
+    with MotionCommander(scf, default_height=DEFAULT_HEIGHT) as mc:
+        while not takeoff_ended.is_set():
+            time.sleep(0.05)
+
+            corrected = False
+
+            if autocorrect_position_x.is_set():
+                print("[AUTO-X] X drift trigger fired. Pausing flight.")
+                mc.stop()
+                time.sleep(1)
+                corrected = True
+                autocorrect_position_x.clear()
+
+            if autocorrect_position_y.is_set():
+                print("[AUTO-Y] Y drift trigger fired. Pausing flight.")
+                mc.stop()
+                time.sleep(1)
+                corrected = True
+                autocorrect_position_y.clear()
+
+            if autocorrect_position_z.is_set():
+                print("[AUTO-Z] Z drift trigger fired. Pausing flight.")
+                mc.stop()
+                time.sleep(1)
+                corrected = True
+                autocorrect_position_z.clear()
+
+            if corrected:
+                print("[AUTO] Autocorrection complete. Resuming.")
+                time.sleep(1)
 
 def write_state_csv_log(full_csv_path_log, log_dict):
     headers = [
@@ -1225,6 +1262,16 @@ def drone_logging_position_multi_ranger(scf, log_multi_ranger, log_dict_ranger, 
 
             display_verdict_triggers(verdict)
 
+            if verdict.multi_ranger_x_drift_exceeded and not autocorrect_position_x.is_set():
+                autocorrect_position_x.set()
+
+            if verdict.multi_ranger_y_drift_exceeded and not autocorrect_position_y.is_set():
+                autocorrect_position_y.set()
+
+            if verdict.multi_ranger_z_drift_exceeded and not autocorrect_position_z.is_set():
+                autocorrect_position_z.set()
+
+
 if __name__ == '__main__':
     cflib.crtp.init_drivers()
 
@@ -1346,14 +1393,22 @@ if __name__ == '__main__':
             args=(scf, log_multi_ranger, log_dict_ranger, ideal_coords_ranger, position_lock, shared_position)
         )
 
+        autocorrect_thread = threading.Thread(
+            target=autocorrect_monitor,
+            args=(scf, position_lock, shared_position)
+        )
+        autocorrect_thread.start()
+
         multi_ranger_thread.start()
         flight_thread.start()
         state_estimate_thread.start()
+        autocorrect_thread.start()
 
         multi_ranger_thread.join()
         flight_thread.join()
         state_estimate_thread.join()
-        
+        autocorrect_thread.join()
+
         state_rows = list(log_dict_state.values())
         ranger_rows = list(log_dict_ranger.values())
 
