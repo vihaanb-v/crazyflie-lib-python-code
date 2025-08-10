@@ -220,10 +220,14 @@ my_back_ready = threading.Event()
 
 hover_established = threading.Event()
 
-autocorrect_position_x = threading.Event()
-autocorrect_position_y = threading.Event()
-autocorrect_position_z = threading.Event()
+autocorrect_position_x_neg = threading.Event()
+autocorrect_position_x_pos = threading.Event()
 
+autocorrect_position_y_neg = threading.Event()
+autocorrect_position_y_pos = threading.Event()
+
+autocorrect_position_z_neg = threading.Event()
+autocorrect_position_z_pos = threading.Event()
 
 def send_state_to_monitor(x_val, x0, y_val, y0, mx_val, mx0, my_val, my0, mz_val, mz0, timestamp):
     x_drift_val = x_val - x0
@@ -441,6 +445,11 @@ def square_turns_starting_at_corner_with_multiranger(scf, position_lock, shared_
 
         mc.start_linear_motion(0.3, 0.0, 0.0)
         while True:
+            while autocorrect_position_x.is_set() or autocorrect_position_y.is_set() or autocorrect_position_z.is_set():
+                mc.stop()
+                autocorrect_position_x.wait(timeout=0.005)
+                autocorrect_position_y.wait(timeout=0.005)
+                #autocorrect_position_z.wait(timeout=0.005)
             with position_lock:
                 my = shared_position["my"]
             if my >= 1.18:
@@ -457,6 +466,16 @@ def square_turns_starting_at_corner_with_multiranger(scf, position_lock, shared_
         
         mc.start_linear_motion(0.0, -0.3, 0.0)
         while True:
+            while autocorrect_position_x_neg.is_set() or autocorrect_position_y_neg.is_set() or autocorrect_position_z_neg.is_set() or autocorrect_position_x_pos.is_set() or autocorrect_position_y_pos.is_set() or autocorrect_position_z_pos.is_set():
+                mc.stop()
+                autocorrect_position_x_neg.wait(timeout=0.005)
+                autocorrect_position_x_pos.wait(timeout=0.005)
+
+                autocorrect_position_y_neg.wait(timeout=0.005)
+                autocorrect_position_y_pos.wait(timeout=0.005)
+
+                #autocorrect_position_z_neg.wait(timeout=0.005)
+                #autocorrect_position_z_pos.wait(timeout=0.005)
             with position_lock:
                 mx = shared_position["mx"]
             if mx >= 1.18:
@@ -473,6 +492,16 @@ def square_turns_starting_at_corner_with_multiranger(scf, position_lock, shared_
 
         mc.start_linear_motion(-0.3, 0.0, 0.0)
         while True:
+            while autocorrect_position_x_neg.is_set() or autocorrect_position_y_neg.is_set() or autocorrect_position_z_neg.is_set() or autocorrect_position_x_pos.is_set() or autocorrect_position_y_pos.is_set() or autocorrect_position_z_pos.is_set():
+                mc.stop()
+                autocorrect_position_x_neg.wait(timeout=0.005)
+                autocorrect_position_x_pos.wait(timeout=0.005)
+
+                autocorrect_position_y_neg.wait(timeout=0.005)
+                autocorrect_position_y_pos.wait(timeout=0.005)
+
+                #autocorrect_position_z_neg.wait(timeout=0.005)
+                #autocorrect_position_z_pos.wait(timeout=0.005)
             with position_lock:
                 my = shared_position["my"]
             if my <= 0.02:
@@ -489,6 +518,16 @@ def square_turns_starting_at_corner_with_multiranger(scf, position_lock, shared_
             
         mc.start_linear_motion(0.0, 0.3, 0.0)
         while True:
+            while autocorrect_position_x_neg.is_set() or autocorrect_position_y_neg.is_set() or autocorrect_position_z_neg.is_set() or autocorrect_position_x_pos.is_set() or autocorrect_position_y_pos.is_set() or autocorrect_position_z_pos.is_set():
+                mc.stop()
+                autocorrect_position_x_neg.wait(timeout=0.005)
+                autocorrect_position_x_pos.wait(timeout=0.005)
+
+                autocorrect_position_y_neg.wait(timeout=0.005)
+                autocorrect_position_y_pos.wait(timeout=0.005)
+
+                #autocorrect_position_z_neg.wait(timeout=0.005)
+                #autocorrect_position_z_pos.wait(timeout=0.005)
             with position_lock:
                 mx = shared_position["mx"]
             if mx <= 0.02:
@@ -570,7 +609,7 @@ def square_turns_starting_at_corner_with_multiranger(scf, position_lock, shared_
         time.sleep(2)
 
         mc.start_linear_motion(-0.3, 0.0, -0.3)
-
+x
         while True:
             with position_lock:
                 my = shared_position["my"]
@@ -620,33 +659,62 @@ def square_turns_starting_at_corner_with_multiranger(scf, position_lock, shared_
     print("Touchdown.")
 '''
 
-def autocorrect_monitor(scf):
+def autocorrect_monitor(scf, position_lock, shared_position):
     with MotionCommander(scf, default_height=DEFAULT_HEIGHT) as mc:
         while not takeoff_ended.is_set():
             time.sleep(0.05)
 
             corrected = False
 
-            if autocorrect_position_x.is_set():
+            if autocorrect_position_x_neg.is_set():
                 print("[AUTO-X] X drift trigger fired. Pausing flight.")
                 mc.stop()
                 time.sleep(1)
-                corrected = True
-                autocorrect_position_x.clear()
+                with position_lock:
+                    mx = position_lock["mx"]
+                mc.start_linear_motion()
+                autocorrect_position_x_neg.clear()
 
-            if autocorrect_position_y.is_set():
+            if autocorrect_position_x_pos.is_set():
+                print("[AUTO-X] X drift trigger fired. Pausing flight.")
+                mc.stop()
+                time.sleep(1)
+                with position_lock:
+                    mx = position_lock["mx"]
+                mc.start_linear_motion()
+                autocorrect_position_x_pos.clear()
+
+            if autocorrect_position_y_neg.is_set():
                 print("[AUTO-Y] Y drift trigger fired. Pausing flight.")
                 mc.stop()
                 time.sleep(1)
-                corrected = True
-                autocorrect_position_y.clear()
+                with position_lock:
+                    my = position_lock["my"]
+                autocorrect_position_y_neg.clear()
 
-            if autocorrect_position_z.is_set():
+            if autocorrect_position_y_pos.is_set():
+                print("[AUTO-Y] Y drift trigger fired. Pausing flight.")
+                mc.stop()
+                time.sleep(1)
+                with position_lock:
+                    my = position_lock["my"]
+                autocorrect_position_y_pos.clear()
+
+            if autocorrect_position_z_neg.is_set():
                 print("[AUTO-Z] Z drift trigger fired. Pausing flight.")
                 mc.stop()
                 time.sleep(1)
-                corrected = True
-                autocorrect_position_z.clear()
+                with position_lock:
+                    mz = position_lock["mz"]
+                autocorrect_position_z_neg.clear()
+                
+            if autocorrect_position_z_pos.is_set():
+                print("[AUTO-Z] Z drift trigger fired. Pausing flight.")
+                mc.stop()
+                time.sleep(1)
+                with position_lock:
+                    mz = position_lock["mz"]
+                autocorrect_position_z_pos.clear()
 
             if corrected:
                 print("[AUTO] Autocorrection complete. Resuming.")
@@ -1271,14 +1339,35 @@ def drone_logging_position_multi_ranger(scf, log_multi_ranger, log_dict_ranger, 
 
             display_verdict_triggers(verdict)
 
-            if verdict.multi_ranger_x_drift_exceeded and not autocorrect_position_x.is_set():
-                autocorrect_position_x.set()
+            if verdict.multi_ranger_x_drift_neg_exceeded and not autocorrect_position_x_neg.is_set():
+                autocorrect_position_x_neg.set()
+                with position_lock:
+                    shared_position["mx"] = mx
 
-            if verdict.multi_ranger_y_drift_exceeded and not autocorrect_position_y.is_set():
-                autocorrect_position_y.set()
+            if verdict.multi_ranger_x_drift_pos_exceeded and not autocorrect_position_x_pos.is_set():
+                autocorrect_position_x_pos.set()
+                with position_lock:
+                    shared_position["mx"] = mx
 
-            if verdict.multi_ranger_z_drift_exceeded and not autocorrect_position_z.is_set():
-                autocorrect_position_z.set()
+            if verdict.multi_ranger_y_drift_neg_exceeded and not autocorrect_position_y_neg.is_set():
+                autocorrect_position_y_neg.set()
+                with position_lock:
+                    shared_position["my"] = my
+
+            if verdict.multi_ranger_y_drift_pos_exceeded and not autocorrect_position_y_pos.is_set():
+                autocorrect_position_y_pos.set()
+                with position_lock:
+                    shared_position["my"] = my
+
+            if verdict.multi_ranger_z_drift_neg_exceeded and not autocorrect_position_z_neg.is_set():
+                autocorrect_position_z_neg.set()
+                with position_lock:
+                    shared_position["mz"] = mz
+
+            if verdict.multi_ranger_z_drift_pos_exceeded and not autocorrect_position_z_pos.is_set():
+                autocorrect_position_z_pos.set()
+                with position_lock:
+                    shared_position["mz"] = mz
 
 
 if __name__ == '__main__':
