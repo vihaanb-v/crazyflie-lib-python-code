@@ -1354,6 +1354,7 @@ def drone_logging_position_multi_ranger(scf, log_multi_ranger, log_dict_ranger, 
             mz = float(f"{(TOP_BOUND - up):.2f}")
 
             #print(f"(Multiranger Raw Position: {mx:.2f}, {my:.2f}, {mz:.2f})")
+
             
             if abs(mx) > x_tolerance or abs(my) > y_tolerance or abs(mz) > z_tolerance:
                 print(f"[{timestamp}] Invalid position ({mx:.2f}, {my:.2f}, {mz:.2f}) detected, skipping logging.")
@@ -1366,6 +1367,7 @@ def drone_logging_position_multi_ranger(scf, log_multi_ranger, log_dict_ranger, 
                         shared_position["mz"] = mz
                     if not position_ready.is_set():
                         position_ready.set()
+            
                 continue
             
             dmx, dmy, dmz = compute_drift_from_path((mx, my, mz), waypoints)
