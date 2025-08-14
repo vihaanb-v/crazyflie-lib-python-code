@@ -195,6 +195,7 @@ import os
 import csv
 import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d import Axes3D
+from queue import Queue, Empty
 
 URI = uri_helper.uri_from_env(default='radio://0/80/2M/E7E7E7E7E7')
 
@@ -228,6 +229,11 @@ autocorrect_position_y_pos = threading.Event()
 
 autocorrect_position_z_neg = threading.Event()
 autocorrect_position_z_pos = threading.Event()
+<<<<<<< HEAD:examples/autonomy/rtlola_flight/rtlola_waypoint_realtime_monitoring_v3_enforcement.py
+=======
+
+corrections_q = Queue()
+>>>>>>> b2515cc (Broken but big change coming. Wanted to save this.):examples/autonomy/rtlola_flight/rtlola_waypoint_realtime_monitoring_v3_enforcement.py.py
 
 def send_state_to_monitor(x_val, x0, y_val, y0, mx_val, mx0, my_val, my0, mz_val, mz0, timestamp):
     x_drift_val = x_val - x0
@@ -239,10 +245,11 @@ def send_state_to_monitor(x_val, x0, y_val, y0, mx_val, mx0, my_val, my0, mz_val
     event = create_event(
         x_drift=x_drift_val,
         y_drift=y_drift_val,
+        z_drift=mz_drift_val,
         multi_ranger_x_drift=mx_drift_val,
         multi_ranger_y_drift=my_drift_val,
         multi_ranger_z_drift=mz_drift_val,
-        time_val=timestamp / 1000.0 # milliseconds
+        time_val=timestamp / 1000.0
     )
 
     verdict = drift_lib.cycle(ctypes.byref(memory_instance), event)
@@ -381,51 +388,6 @@ def square_turns_starting_at_corner(scf, velocity):
         
     print("Touchdown.")
 
-def square_turns_starting_at_center(scf, velocity):
-    print("Coordinate 1 (Takeoff): (0, 0, 0)")
-    print("Coordinate 2 (Hover): (0, 0, 1.5)")
-    print("Coordinate 3: (0, 0.6, 1.5)")
-    print("Coordinate 4: (-0.6, 0.6, 1.5)")
-    print("Coordinate 5: (-0.6, -0.6, 1.5)")
-    print("Coordinate 6: (0.6, -0.6, 1.5)")
-    print("Coordinate 7: (0.6, 0.6, 1.5)")
-    print("Coordinate 8: (0, 0.6, 1.5)")
-    print("Coordinate 9 (RTH): (0, 0, 1.5)")
-    print("Coordinate 10 (Landing): (0, 0, 0)")
-
-    print("Takeoff.")
-
-    takeoff_started.set()
-    
-    with MotionCommander(scf, default_height=DEFAULT_HEIGHT) as mc:
-        #Code using turns from bottom right corner of square
-        time.sleep(3)
-        mc.forward(0.6, velocity=velocity)
-        time.sleep(3)
-        mc.turn_left(90)
-        mc.forward(0.6, velocity=velocity)
-        time.sleep(3)
-        mc.turn_left(90)
-        mc.forward(1.2, velocity=velocity)
-        time.sleep(3)
-        mc.turn_left(90)
-        mc.forward(1.2, velocity=velocity)
-        time.sleep(3)
-        mc.turn_left(90)
-        mc.forward(1.2, velocity=velocity)
-        time.sleep(3)
-        mc.turn_left(90)
-        mc.forward(0.6, velocity=velocity)
-        time.sleep(3)
-        mc.turn_left(90)
-        mc.forward(0.6, velocity=velocity)
-        time.sleep(3)
-        mc.turn_left(180)
-        time.sleep(3)
-        mc.stop()
-        
-    print("Touchdown.")
-
 def square_turns_starting_at_corner_with_multiranger(scf, position_lock, shared_position):
     print("Coordinate 1 (Takeoff): (0, 0, 0)")
     print("Coordinate 2 (Hover): (0, 0, 1.5)")
@@ -445,11 +407,15 @@ def square_turns_starting_at_corner_with_multiranger(scf, position_lock, shared_
 
         mc.start_linear_motion(0.3, 0.0, 0.0)
         while True:
+<<<<<<< HEAD:examples/autonomy/rtlola_flight/rtlola_waypoint_realtime_monitoring_v3_enforcement.py
             while autocorrect_position_x.is_set() or autocorrect_position_y.is_set() or autocorrect_position_z.is_set():
                 mc.stop()
                 autocorrect_position_x.wait(timeout=0.005)
                 autocorrect_position_y.wait(timeout=0.005)
                 #autocorrect_position_z.wait(timeout=0.005)
+=======
+            wait_until_all_autocorrect_clear()
+>>>>>>> b2515cc (Broken but big change coming. Wanted to save this.):examples/autonomy/rtlola_flight/rtlola_waypoint_realtime_monitoring_v3_enforcement.py.py
             with position_lock:
                 my = shared_position["my"]
             if my >= 1.18:
@@ -466,6 +432,7 @@ def square_turns_starting_at_corner_with_multiranger(scf, position_lock, shared_
         
         mc.start_linear_motion(0.0, -0.3, 0.0)
         while True:
+<<<<<<< HEAD:examples/autonomy/rtlola_flight/rtlola_waypoint_realtime_monitoring_v3_enforcement.py
             while autocorrect_position_x_neg.is_set() or autocorrect_position_y_neg.is_set() or autocorrect_position_z_neg.is_set() or autocorrect_position_x_pos.is_set() or autocorrect_position_y_pos.is_set() or autocorrect_position_z_pos.is_set():
                 mc.stop()
                 autocorrect_position_x_neg.wait(timeout=0.005)
@@ -476,6 +443,9 @@ def square_turns_starting_at_corner_with_multiranger(scf, position_lock, shared_
 
                 #autocorrect_position_z_neg.wait(timeout=0.005)
                 #autocorrect_position_z_pos.wait(timeout=0.005)
+=======
+            wait_until_all_autocorrect_clear()
+>>>>>>> b2515cc (Broken but big change coming. Wanted to save this.):examples/autonomy/rtlola_flight/rtlola_waypoint_realtime_monitoring_v3_enforcement.py.py
             with position_lock:
                 mx = shared_position["mx"]
             if mx >= 1.18:
@@ -492,6 +462,7 @@ def square_turns_starting_at_corner_with_multiranger(scf, position_lock, shared_
 
         mc.start_linear_motion(-0.3, 0.0, 0.0)
         while True:
+<<<<<<< HEAD:examples/autonomy/rtlola_flight/rtlola_waypoint_realtime_monitoring_v3_enforcement.py
             while autocorrect_position_x_neg.is_set() or autocorrect_position_y_neg.is_set() or autocorrect_position_z_neg.is_set() or autocorrect_position_x_pos.is_set() or autocorrect_position_y_pos.is_set() or autocorrect_position_z_pos.is_set():
                 mc.stop()
                 autocorrect_position_x_neg.wait(timeout=0.005)
@@ -502,6 +473,9 @@ def square_turns_starting_at_corner_with_multiranger(scf, position_lock, shared_
 
                 #autocorrect_position_z_neg.wait(timeout=0.005)
                 #autocorrect_position_z_pos.wait(timeout=0.005)
+=======
+            wait_until_all_autocorrect_clear()
+>>>>>>> b2515cc (Broken but big change coming. Wanted to save this.):examples/autonomy/rtlola_flight/rtlola_waypoint_realtime_monitoring_v3_enforcement.py.py
             with position_lock:
                 my = shared_position["my"]
             if my <= 0.02:
@@ -518,6 +492,7 @@ def square_turns_starting_at_corner_with_multiranger(scf, position_lock, shared_
             
         mc.start_linear_motion(0.0, 0.3, 0.0)
         while True:
+<<<<<<< HEAD:examples/autonomy/rtlola_flight/rtlola_waypoint_realtime_monitoring_v3_enforcement.py
             while autocorrect_position_x_neg.is_set() or autocorrect_position_y_neg.is_set() or autocorrect_position_z_neg.is_set() or autocorrect_position_x_pos.is_set() or autocorrect_position_y_pos.is_set() or autocorrect_position_z_pos.is_set():
                 mc.stop()
                 autocorrect_position_x_neg.wait(timeout=0.005)
@@ -528,6 +503,9 @@ def square_turns_starting_at_corner_with_multiranger(scf, position_lock, shared_
 
                 #autocorrect_position_z_neg.wait(timeout=0.005)
                 #autocorrect_position_z_pos.wait(timeout=0.005)
+=======
+            wait_until_all_autocorrect_clear()
+>>>>>>> b2515cc (Broken but big change coming. Wanted to save this.):examples/autonomy/rtlola_flight/rtlola_waypoint_realtime_monitoring_v3_enforcement.py.py
             with position_lock:
                 mx = shared_position["mx"]
             if mx <= 0.02:
@@ -540,16 +518,19 @@ def square_turns_starting_at_corner_with_multiranger(scf, position_lock, shared_
         
     print("Touchdown.")
 
-'''
-def square_turns_starting_at_corner_with_multiranger(scf, position_lock, shared_position):
-    print("Coordinate 1 (Takeoff): (0, 0, 0)")
-    print("Coordinate 2 (Hover): (0, 0, 1.5)")
-    print("Coordinate 3: (0, 1.2, 1.0)")
-    print("Coordinate 4: (1.2, 1.2, 1.5)")
-    print("Coordinate 5: (1.2, 0, 1.0)")
-    print("Coordinate 6 (RTH): (0, 0, 1.5)")
-    print("Coordinate 7 (Landing): (0, 0, 0)")
+def wait_until_all_autocorrect_clear():
+    # block until all autocorrect flags are cleared
+    while (
+        autocorrect_position_x_neg.is_set() or
+        autocorrect_position_x_pos.is_set() or
+        autocorrect_position_y_neg.is_set() or
+        autocorrect_position_y_pos.is_set() or
+        autocorrect_position_z_neg.is_set() or
+        autocorrect_position_z_pos.is_set()
+    ):
+        time.sleep(0.01)
 
+<<<<<<< HEAD:examples/autonomy/rtlola_flight/rtlola_waypoint_realtime_monitoring_v3_enforcement.py
     print("Takeoff.")
 
     takeoff_started.set()
@@ -659,6 +640,8 @@ x
     print("Touchdown.")
 '''
 
+=======
+>>>>>>> b2515cc (Broken but big change coming. Wanted to save this.):examples/autonomy/rtlola_flight/rtlola_waypoint_realtime_monitoring_v3_enforcement.py.py
 def autocorrect_monitor(scf, position_lock, shared_position):
     with MotionCommander(scf, default_height=DEFAULT_HEIGHT) as mc:
         while not takeoff_ended.is_set():
@@ -671,54 +654,138 @@ def autocorrect_monitor(scf, position_lock, shared_position):
                 mc.stop()
                 time.sleep(1)
                 with position_lock:
+<<<<<<< HEAD:examples/autonomy/rtlola_flight/rtlola_waypoint_realtime_monitoring_v3_enforcement.py
                     mx = position_lock["mx"]
                 mc.start_linear_motion()
                 autocorrect_position_x_neg.clear()
 
+=======
+                    dmx = shared_position["dmx"]
+
+                correction_time = abs(dmx / 0.3)
+
+                mc.start_linear_motion(0.0, -0.3, 0.0)
+                time.sleep(correction_time)
+                mc.stop()
+                
+                autocorrect_position_x_neg.clear()
+                corrected = True
+
+>>>>>>> b2515cc (Broken but big change coming. Wanted to save this.):examples/autonomy/rtlola_flight/rtlola_waypoint_realtime_monitoring_v3_enforcement.py.py
             if autocorrect_position_x_pos.is_set():
                 print("[AUTO-X] X drift trigger fired. Pausing flight.")
                 mc.stop()
                 time.sleep(1)
                 with position_lock:
+<<<<<<< HEAD:examples/autonomy/rtlola_flight/rtlola_waypoint_realtime_monitoring_v3_enforcement.py
                     mx = position_lock["mx"]
                 mc.start_linear_motion()
                 autocorrect_position_x_pos.clear()
+=======
+                    dmx = shared_position["dmx"]
+
+                correction_time = abs(dmx / 0.3)
+
+                mc.start_linear_motion(0.0, 0.3, 0.0)
+                time.sleep(correction_time)
+                mc.stop()
+
+                autocorrect_position_x_pos.clear()
+                corrected = True
+>>>>>>> b2515cc (Broken but big change coming. Wanted to save this.):examples/autonomy/rtlola_flight/rtlola_waypoint_realtime_monitoring_v3_enforcement.py.py
 
             if autocorrect_position_y_neg.is_set():
                 print("[AUTO-Y] Y drift trigger fired. Pausing flight.")
                 mc.stop()
                 time.sleep(1)
                 with position_lock:
+<<<<<<< HEAD:examples/autonomy/rtlola_flight/rtlola_waypoint_realtime_monitoring_v3_enforcement.py
                     my = position_lock["my"]
                 autocorrect_position_y_neg.clear()
 
+=======
+                    dmy = shared_position["dmy"]
+
+                correction_time = abs(dmy / 0.3)
+
+                mc.start_linear_motion(0.3, 0.0, 0.0)
+                time.sleep(correction_time)
+                mc.stop()
+
+                autocorrect_position_y_neg.clear()
+                corrected = True
+
+>>>>>>> b2515cc (Broken but big change coming. Wanted to save this.):examples/autonomy/rtlola_flight/rtlola_waypoint_realtime_monitoring_v3_enforcement.py.py
             if autocorrect_position_y_pos.is_set():
                 print("[AUTO-Y] Y drift trigger fired. Pausing flight.")
                 mc.stop()
                 time.sleep(1)
                 with position_lock:
+<<<<<<< HEAD:examples/autonomy/rtlola_flight/rtlola_waypoint_realtime_monitoring_v3_enforcement.py
                     my = position_lock["my"]
                 autocorrect_position_y_pos.clear()
 
+=======
+                    dmy = shared_position["dmy"]
+
+                correction_time = abs(dmy / 0.3)
+
+                mc.start_linear_motion(-0.3, 0.0, 0.0)
+                time.sleep(correction_time)
+                mc.stop()
+                
+                autocorrect_position_y_pos.clear()
+                corrected = True
+
+            '''
+>>>>>>> b2515cc (Broken but big change coming. Wanted to save this.):examples/autonomy/rtlola_flight/rtlola_waypoint_realtime_monitoring_v3_enforcement.py.py
             if autocorrect_position_z_neg.is_set():
                 print("[AUTO-Z] Z drift trigger fired. Pausing flight.")
                 mc.stop()
                 time.sleep(1)
                 with position_lock:
+<<<<<<< HEAD:examples/autonomy/rtlola_flight/rtlola_waypoint_realtime_monitoring_v3_enforcement.py
                     mz = position_lock["mz"]
                 autocorrect_position_z_neg.clear()
+=======
+                    dmz = shared_position["dmz"]
+                
+                correction_time = abs(dmz / 0.3)
+
+                mc.start_linear_motion(0.0, 0.0, 0.3)
+                time.sleep(correction_time)
+                mc.stop()
+
+                autocorrect_position_z_neg.clear()
+                corrected = True
+>>>>>>> b2515cc (Broken but big change coming. Wanted to save this.):examples/autonomy/rtlola_flight/rtlola_waypoint_realtime_monitoring_v3_enforcement.py.py
                 
             if autocorrect_position_z_pos.is_set():
                 print("[AUTO-Z] Z drift trigger fired. Pausing flight.")
                 mc.stop()
                 time.sleep(1)
                 with position_lock:
+<<<<<<< HEAD:examples/autonomy/rtlola_flight/rtlola_waypoint_realtime_monitoring_v3_enforcement.py
                     mz = position_lock["mz"]
                 autocorrect_position_z_pos.clear()
+=======
+                    dmz = shared_position["dmz"]
+
+                correction_time = abs(dmz / 0.3)
+
+                mc.start_linear_motion(0.0, 0.0, -0.3)
+                time.sleep(correction_time)
+                mc.stop()
+
+                autocorrect_position_z_pos.clear()
+                corrected = True
+            '''
+>>>>>>> b2515cc (Broken but big change coming. Wanted to save this.):examples/autonomy/rtlola_flight/rtlola_waypoint_realtime_monitoring_v3_enforcement.py.py
 
             if corrected:
                 print("[AUTO] Autocorrection complete. Resuming.")
-                time.sleep(1)
+                time.sleep(0.2)
+                corrected = False
 
 def write_state_csv_log(full_csv_path_log, log_dict):
     headers = [
@@ -726,12 +793,15 @@ def write_state_csv_log(full_csv_path_log, log_dict):
         "x_drift", "y_drift", "z_drift",
         "roll", "pitch", "yaw",
         "roll_drift", "pitch_drift", "yaw_drift",
-        "x_drift_exceeded", "x_drift_trigger",
-        "y_drift_exceeded", "y_drift_trigger",
-        "z_drift_exceeded", "z_drift_trigger",
+        "x_drift_pos_exceeded", "x_drift_pos_trigger",
+        "x_drift_neg_exceeded", "x_drift_neg_trigger",
+        "y_drift_pos_exceeded", "y_drift_pos_trigger",
+        "y_drift_neg_exceeded", "y_drift_neg_trigger",
+        "z_drift_pos_exceeded", "z_drift_pos_trigger",
+        "z_drift_neg_exceeded", "z_drift_neg_trigger",
         "pitch_exceeded", "pitch_trigger",
         "roll_exceeded", "roll_trigger",
-        "yaw_exceeded", "yaw_trigger"
+        "yaw_exceeded", "yaw_trigger",
     ]
 
     with open(full_csv_path_log, 'w', newline='') as f:
@@ -747,9 +817,12 @@ def write_ranger_csv_log(full_csv_path_log, log_dict):
     headers = [
         "timestamp", "mx", "my", "mz",
         "multi_ranger_x_drift", "multi_ranger_y_drift", "multi_ranger_z_drift",
-        "multi_ranger_x_drift_exceeded", "multi_ranger_x_drift_trigger",
-        "multi_ranger_y_drift_exceeded", "multi_ranger_y_drift_trigger",
-        "multi_ranger_z_drift_exceeded", "multi_ranger_z_drift_trigger"
+        "multi_ranger_x_drift_pos_exceeded", "multi_ranger_x_drift_pos_trigger",
+        "multi_ranger_x_drift_neg_exceeded", "multi_ranger_x_drift_neg_trigger",
+        "multi_ranger_y_drift_pos_exceeded", "multi_ranger_y_drift_pos_trigger",
+        "multi_ranger_y_drift_neg_exceeded", "multi_ranger_y_drift_neg_trigger",
+        "multi_ranger_z_drift_pos_exceeded", "multi_ranger_z_drift_pos_trigger",
+        "multi_ranger_z_drift_neg_exceeded", "multi_ranger_z_drift_neg_trigger",
     ]
 
     with open(full_csv_path_log, 'w', newline='') as f:
@@ -1189,23 +1262,27 @@ def drone_logging_position_state_estimate(scf, log_state_estimate, log_dict_stat
                 "roll": roll, "pitch": pitch, "yaw": yaw,
                 "roll_drift": droll, "pitch_drift": dpitch, "yaw_drift": dyaw,
 
-                "x_drift_exceeded": int(get_val("x_drift_exceeded")),
-                "x_drift_trigger": get_trigger("trigger_0"),
+                "x_drift_pos_exceeded": int(get_val("x_drift_pos_exceeded")),
+                "x_drift_pos_trigger":  get_trigger("trigger_0"),
+                "x_drift_neg_exceeded": int(get_val("x_drift_neg_exceeded")),
+                "x_drift_neg_trigger":  get_trigger("trigger_1"),
 
-                "y_drift_exceeded": int(get_val("y_drift_exceeded")),
-                "y_drift_trigger": get_trigger("trigger_1"),
+                "y_drift_pos_exceeded": int(get_val("y_drift_pos_exceeded")),
+                "y_drift_pos_trigger":  get_trigger("trigger_2"),
+                "y_drift_neg_exceeded": int(get_val("y_drift_neg_exceeded")),
+                "y_drift_neg_trigger":  get_trigger("trigger_3"),
 
-                "z_drift_exceeded": int(get_val("z_drift_exceeded")),
-                "z_drift_trigger": get_trigger("trigger_2"),
+                "z_drift_pos_exceeded": int(get_val("z_drift_pos_exceeded")),
+                "z_drift_pos_trigger":  get_trigger("trigger_4"),
+                "z_drift_neg_exceeded": int(get_val("z_drift_neg_exceeded")),
+                "z_drift_neg_trigger":  get_trigger("trigger_5"),
 
                 "pitch_exceeded": int(get_val("pitch_exceeded")),
-                "pitch_trigger": get_trigger("trigger_3"),
-
-                "roll_exceeded": int(get_val("roll_exceeded")),
-                "roll_trigger": get_trigger("trigger_4"),
-
-                "yaw_exceeded": int(get_val("yaw_exceeded")),
-                "yaw_trigger": get_trigger("trigger_5"),
+                "pitch_trigger":  get_trigger("trigger_12"),
+                "roll_exceeded":  int(get_val("roll_exceeded")),
+                "roll_trigger":   get_trigger("trigger_13"),
+                "yaw_exceeded":   int(get_val("yaw_exceeded")),
+                "yaw_trigger":    get_trigger("trigger_14"),
             }
 
             print(f"[{timestamp}] Pos: ({x:.2f}, {y:.2f}, {z:.2f}) | Drift: (dx = {dx:.2f}, dy = {dy:.2f}, dz = {dz:.2f}) | "
@@ -1213,21 +1290,6 @@ def drone_logging_position_state_estimate(scf, log_state_estimate, log_dict_stat
                   f"Orient Drift: (droll = {droll:.2f}, dpitch = {dpitch:.2f}, dyaw = {dyaw:.2f})")
             
             display_verdict_triggers(verdict)
-
-'''
-def safe_read(data, key):
-    MAX_VALID_RANGE = 2.5 
-    val = data.get(key, None)
-    try:
-        val = float(val)
-        if val <= 0.0 or val == float('inf') or val != val:  # Reject <=0, inf, nan
-            return None
-        if val > MAX_VALID_RANGE:
-            return None
-        return float(f"{val:.3f}")
-    except (ValueError, TypeError):
-        return None
-'''
 
 def drone_logging_position_multi_ranger(scf, log_multi_ranger, log_dict_ranger, waypoints, position_lock, shared_position):
     takeoff_started.wait()
@@ -1255,11 +1317,18 @@ def drone_logging_position_multi_ranger(scf, log_multi_ranger, log_dict_ranger, 
             data = log_entry[1]
 
             try:
+                front = data.get('range.front') / 1000.0
+                back = data.get('range.back') / 1000.0
+                left = data.get('range.left') / 1000.0
+                right = data.get('range.right') / 1000.0
+                up = data.get('range.up') / 1000.0
+                '''
                 front = float(f"{data.get('range.front') / 1000.0:.2f}")
                 back = float(f"{data.get('range.back') / 1000.0:.2f}")
                 left = float(f"{data.get('range.left') / 1000.0:.2f}")
                 right = float(f"{data.get('range.right') / 1000.0:.2f}")
                 up = float(f"{data.get('range.up') / 1000.0:.2f}")
+                '''
             except (TypeError, ValueError):
                 print(f"[{timestamp}] Type error in range data, skipping.")
                 continue
@@ -1285,22 +1354,31 @@ def drone_logging_position_multi_ranger(scf, log_multi_ranger, log_dict_ranger, 
             mz = float(f"{(TOP_BOUND - up):.2f}")
 
             #print(f"(Multiranger Raw Position: {mx:.2f}, {my:.2f}, {mz:.2f})")
-
-            with position_lock:
-                if abs(mx) <= x_tolerance:
-                    shared_position["mx"] = mx
-                if abs(my) <= y_tolerance:
-                    shared_position["my"] = my
-                if abs(mz) <= z_tolerance:
-                    shared_position["mz"] = mz
-                if not position_ready.is_set():
-                    position_ready.set()
             
             if abs(mx) > x_tolerance or abs(my) > y_tolerance or abs(mz) > z_tolerance:
                 print(f"[{timestamp}] Invalid position ({mx:.2f}, {my:.2f}, {mz:.2f}) detected, skipping logging.")
+                with position_lock:
+                    if abs(mx) <= x_tolerance:
+                        shared_position["mx"] = mx
+                    if abs(my) <= y_tolerance:
+                        shared_position["my"] = my
+                    if abs(mz) <= z_tolerance:
+                        shared_position["mz"] = mz
+                    if not position_ready.is_set():
+                        position_ready.set()
                 continue
             
             dmx, dmy, dmz = compute_drift_from_path((mx, my, mz), waypoints)
+
+            with position_lock:
+                shared_position["mx"] = mx
+                shared_position["my"] = my
+                shared_position["mz"] = mz
+                shared_position["dmx"] = dmx
+                shared_position["dmy"] = dmy
+                shared_position["dmz"] = dmz
+                if not position_ready.is_set():
+                    position_ready.set()
 
             event = create_event(
                 multi_ranger_x_drift=dmx,
@@ -1325,17 +1403,23 @@ def drone_logging_position_multi_ranger(scf, log_multi_ranger, log_dict_ranger, 
                 "multi_ranger_x_drift": dmx,
                 "multi_ranger_y_drift": dmy,
                 "multi_ranger_z_drift": dmz,
-                "multi_ranger_x_drift_exceeded": int(get_val("multi_ranger_x_drift_exceeded")),
-                "multi_ranger_x_drift_trigger": get_trigger("trigger_6"),
-                "multi_ranger_y_drift_exceeded": int(get_val("multi_ranger_y_drift_exceeded")),
-                "multi_ranger_y_drift_trigger": get_trigger("trigger_7"),
-                "multi_ranger_z_drift_exceeded": int(get_val("multi_ranger_z_drift_exceeded")),
-                "multi_ranger_z_drift_trigger": get_trigger("trigger_8"),
+                "multi_ranger_x_drift_pos_exceeded": int(get_val("multi_ranger_x_drift_pos_exceeded")),
+                "multi_ranger_x_drift_pos_trigger": get_trigger("trigger_6"),
+                "multi_ranger_x_drift_neg_exceeded": int(get_val("multi_ranger_x_drift_neg_exceeded")),
+                "multi_ranger_x_drift_neg_trigger": get_trigger("trigger_7"),
+                "multi_ranger_y_drift_pos_exceeded": int(get_val("multi_ranger_y_drift_pos_exceeded")),
+                "multi_ranger_y_drift_pos_trigger": get_trigger("trigger_8"),
+                "multi_ranger_y_drift_neg_exceeded": int(get_val("multi_ranger_y_drift_neg_exceeded")),
+                "multi_ranger_y_drift_neg_trigger": get_trigger("trigger_9"),
+                "multi_ranger_z_drift_pos_exceeded": int(get_val("multi_ranger_z_drift_pos_exceeded")),
+                "multi_ranger_z_drift_pos_trigger": get_trigger("trigger_10"),
+                "multi_ranger_z_drift_neg_exceeded": int(get_val("multi_ranger_z_drift_neg_exceeded")),
+                "multi_ranger_z_drift_neg_trigger": get_trigger("trigger_11"),
                 "right": right, "front": front, "up": up,
             }
 
             print(f"[{timestamp}] MultiRanger Pos: ({mx:.2f}, {my:.2f}, {mz:.2f}) | "
-                  f"Drift: (mdx = {dmx:.2f}, mdy = {dmy:.2f}, mdz = {dmz:.2f})")
+                  f"Drift: (dmx = {dmx:.2f}, dmy = {dmy:.2f}, dmz = {dmz:.2f})")
 
             display_verdict_triggers(verdict)
 
@@ -1373,7 +1457,7 @@ def drone_logging_position_multi_ranger(scf, log_multi_ranger, log_dict_ranger, 
 if __name__ == '__main__':
     cflib.crtp.init_drivers()
 
-    run_id = "run10"
+    run_id = "run11"
 
     log_dict_state = {}
     log_dict_ranger = {}
@@ -1495,7 +1579,6 @@ if __name__ == '__main__':
             target=autocorrect_monitor,
             args=(scf, position_lock, shared_position)
         )
-        autocorrect_thread.start()
 
         multi_ranger_thread.start()
         flight_thread.start()
