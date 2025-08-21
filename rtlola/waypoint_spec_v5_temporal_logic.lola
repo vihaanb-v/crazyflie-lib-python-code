@@ -1,0 +1,95 @@
+input x_drift: Float64
+input y_drift: Float64
+input z_drift: Float64
+
+input pitch: Float64
+input roll: Float64
+input yaw: Float64
+
+input multi_ranger_x_drift: Float64
+input multi_ranger_y_drift: Float64
+input multi_ranger_z_drift: Float64
+
+output abs_pitch: Float64 := if pitch < 0.0 then -pitch else pitch
+output abs_roll: Float64 := if roll < 0.0 then -roll else roll
+output abs_yaw: Float64 := if yaw < 0.0 then -yaw else yaw
+
+output x_drift_pos_exceeded: Bool := x_drift > 0.2
+trigger x_drift_pos_exceeded "X drift right (State Estimate) > 0.2m — correcting left!"
+
+output x_drift_neg_exceeded: Bool := x_drift < -0.2
+trigger x_drift_neg_exceeded "X drift left (State Estimate) < -0.2m — correcting right!"
+
+output y_drift_pos_exceeded: Bool := y_drift > 0.2
+trigger y_drift_pos_exceeded "Y drift forward (State Estimate) > 0.2m — correcting back!"
+
+output y_drift_neg_exceeded: Bool := y_drift < -0.2
+trigger y_drift_neg_exceeded "Y drift back (State Estimate) < -0.2m — correcting forward!"
+
+output z_drift_pos_exceeded: Bool := z_drift > 0.2
+trigger z_drift_pos_exceeded "Z drift up (State Estimate) > 0.2m — correcting down!"
+
+output z_drift_neg_exceeded: Bool := z_drift < -0.2
+trigger z_drift_neg_exceeded "Z drift down (State Estimate) < -0.2m — correcting up!"
+
+output multi_ranger_x_drift_pos_exceeded: Bool := multi_ranger_x_drift > 0.2
+trigger multi_ranger_x_drift_pos_exceeded "X drift right (Multi-Ranger) > 0.2m — correcting left!"
+
+output multi_ranger_x_drift_neg_exceeded: Bool := multi_ranger_x_drift < -0.2
+trigger multi_ranger_x_drift_neg_exceeded "X drift left (Multi-Ranger) < -0.2m — correcting right!"
+
+output multi_ranger_y_drift_pos_exceeded: Bool := multi_ranger_y_drift > 0.2
+trigger multi_ranger_y_drift_pos_exceeded "Y drift forward (Multi-Ranger) > 0.2m — correcting back!"
+
+output multi_ranger_y_drift_neg_exceeded: Bool := multi_ranger_y_drift < -0.2
+trigger multi_ranger_y_drift_neg_exceeded "Y drift back (Multi-Ranger) < -0.2m — correcting forward!"
+
+output multi_ranger_z_drift_pos_exceeded: Bool := multi_ranger_z_drift > 0.2
+trigger multi_ranger_z_drift_pos_exceeded "Z drift up (Multi-Ranger) > 0.2m — correcting down!"
+
+output multi_ranger_z_drift_neg_exceeded: Bool := multi_ranger_z_drift < -0.2
+trigger multi_ranger_z_drift_neg_exceeded "Z drift down (Multi-Ranger) < -0.2m — correcting up!"
+
+output pitch_exceeded: Bool := abs_pitch > 0.3
+trigger pitch_exceeded "Pitch exceeded 0.3 radians! Stabilizing!"
+
+output roll_exceeded: Bool := abs_roll > 0.3
+trigger roll_exceeded "Roll exceeded 0.3 radians! Stabilizing!"
+
+output yaw_exceeded: Bool := abs_yaw > 0.3
+trigger yaw_exceeded "Yaw exceeded 0.3 radians! Stabilizing!"
+
+input x: Float64
+input y: Float64
+input z: Float64
+
+input wp_x: Float64
+input wp_y: Float64
+input wp_z: Float64
+
+const EPS2: Float64 := 0.0025
+const R: Float64 := 0.15
+
+output dist2_to_wp: Float64 := (x - wp_x) * (x - wp_x) + (y - wp_y) * (y - wp_y) + (z - wp_z) * (z - wp_z)
+
+output prev_dist2_to_wp: Float64 := dist2_to_wp.offset(by: -1).defaults(to: 1.0e10)
+
+output step_closure2: Float64 := prev_dist2_to_wp - dist2_to_wp
+
+output reached_wp: Bool := dist2_to_wp <= (R * R)
+
+@10Hz
+output step_closure2_10Hz: Float64 := step_closure2
+
+@10Hz
+output min_closure2_2s: Float64 := step_closure2_10Hz.aggregate(over: 2s, using: min)
+
+@10Hz
+output min_closure2_5s: Float64 := step_closure2_10Hz.aggregate(over: 5s, using: min)
+
+output progressing_2s: Bool := min_closure2_2s > EPS2
+output progressing_5s: Bool := min_closure2_5s > EPS2
+
+trigger reached_wp "Reached waypoint."
+trigger (not progressing_2s) and (not reached_wp) "Not progressing toward waypoint for 2s."
+trigger (not progressing_5s) and (not reached_wp) "Potentially stuck: no net approach for 5s."
