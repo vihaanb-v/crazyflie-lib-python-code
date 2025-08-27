@@ -1,3 +1,4 @@
+import math
 input x_drift: Float64
 input y_drift: Float64
 input z_drift: Float64
@@ -67,25 +68,25 @@ input waypoint_x: Float64
 input waypoint_y: Float64
 input waypoint_z: Float64
 
-const P: Float64 := 0.02
-const R: Float64 := 0.10
+constant P: Float64 := 0.02
+constant R: Float64 := 0.10
 
 output dist_to_waypoint: Float64 := sqrt((x - waypoint_x) * (x - waypoint_x) + (y - waypoint_y) * (y - waypoint_y) + (z - waypoint_z) * (z - waypoint_z))
 
-output prev_dist_to_waypoint: Float64 := dist_to_waypoint.offset(by: -1).defaults(to: 1.0e5)
+output prev_dist_to_waypoint: Float64 := dist_to_waypoint.offset(by: -1).defaults(to: 10000.0)
 
 output step_closure: Float64 := prev_dist_to_waypoint - dist_to_waypoint
 
 output reached_waypoint: Bool := dist_to_waypoint <= (R)
 
-output step_closure_10Hz: Float64 @10Hz := step_closure
-
-output min_closure_2s: Float64 @10Hz := step_closure_10Hz.aggregate(over: 2s, using: min)
+output min_closure_2s: Float64 @1s := step_closure.aggregate(over: 2s, using: min).defaults(to: 0.0)
 output progressing_2s: Bool := min_closure_2s > P
 
-output min_closure_5s: Float64 @10Hz := step_closure_10Hz.aggregate(over: 5s, using: min)
+output min_closure_5s: Float64 @1s := step_closure.aggregate(over: 5s, using: min).defaults(to: 0.0)
 output progressing_5s: Bool := min_closure_5s > P
 
 trigger reached_waypoint "Reached waypoint."
-trigger (not progressing_2s) and (not reached_waypoint) "Not progressing toward waypoint for 2s."
-trigger (not progressing_5s) and (not reached_waypoint) "Potentially stuck: no net approach for 5s."
+#[warning]
+trigger @1s (not progressing_2s) and (not reached_waypoint.hold(or: false)) "Not progressing toward waypoint for 2s."
+#[violation]
+trigger (not progressing_5s) and (not reached_waypoint.hold(or: false)) "Potentially stuck: no net approach for 5s."
