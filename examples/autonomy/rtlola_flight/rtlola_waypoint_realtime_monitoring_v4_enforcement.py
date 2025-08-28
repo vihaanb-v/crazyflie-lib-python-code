@@ -455,10 +455,51 @@ def combined_flight(scf, position_lock, shared_position):
 
     with MotionCommander(scf, default_height=DEFAULT_HEIGHT) as mc:
         position_ready.wait()
+        
         time.sleep(3)
 
+        with position_lock:
+            mx = shared_position["mx"]
+            my = shared_position["my"]
+
+        if mx > 0.2:
+            print("[INIT-AUTO-X] Initial X displacement too large. Correcting to 0.")
+            correction_time = abs(mx / 0.2) + 0.7
+            mc.start_linear_motion(0.0, -0.2, 0.0)
+            time.sleep(correction_time)
+            mc.stop()
+            time.sleep(1)
+
+        elif mx < -0.2:
+            print("[INIT-AUTO-X] Initial X displacement too large. Correcting to 0.")
+            correction_time = abs(mx / 0.2) + 0.7
+            mc.start_linear_motion(0.0, 0.2, 0.0)
+            time.sleep(correction_time)
+            mc.stop()
+            time.sleep(1)
+
+        if my > 0.2:
+            print("[INIT-AUTO-Y] Initial Y displacement too large. Correcting to 0.")
+            correction_time = abs(my / 0.2) + 0.7
+            mc.start_linear_motion(-0.2, 0.0, 0.0)
+            time.sleep(correction_time)
+            mc.stop()
+            time.sleep(1)
+
+        elif my < -0.2:
+            print("[INIT-AUTO-Y] Initial Y displacement too large. Correcting to 0.")
+            correction_time = abs(my / 0.2) + 0.7
+            mc.start_linear_motion(0.2, 0.0, 0.0)
+            time.sleep(correction_time)
+            mc.stop()
+            time.sleep(1)
+        
         # SEGMENT 1
         mc.start_linear_motion(0.2, 0.0, 0.0)
+        autocorrect_position_x_neg.clear()
+        autocorrect_position_x_pos.clear()
+        autocorrect_position_y_neg.clear()
+        autocorrect_position_y_pos.clear()
         while True:
             if autocorrect_position_x_neg.is_set():
                 print("[AUTO-X] X drift trigger fired. Pausing flight.")
@@ -466,7 +507,7 @@ def combined_flight(scf, position_lock, shared_position):
                 time.sleep(2)
                 with position_lock:
                     dmx = shared_position["dmx"]
-                correction_time = abs(dmx / 0.2) + 0.5
+                correction_time = abs(dmx / 0.2) + 0.7
                 mc.start_linear_motion(0.0, -0.2, 0.0)
                 time.sleep(correction_time)
                 mc.stop()
@@ -480,7 +521,7 @@ def combined_flight(scf, position_lock, shared_position):
                 time.sleep(2)
                 with position_lock:
                     dmx = shared_position["dmx"]
-                correction_time = abs(dmx / 0.2) + 0.5
+                correction_time = abs(dmx / 0.2) + 0.7
                 mc.start_linear_motion(0.0, 0.2, 0.0)
                 time.sleep(correction_time)
                 mc.stop()
@@ -494,7 +535,7 @@ def combined_flight(scf, position_lock, shared_position):
                 time.sleep(2)
                 with position_lock:
                     dmy = shared_position["dmy"]
-                correction_time = abs(dmy / 0.2) + 0.5
+                correction_time = abs(dmy / 0.2) + 0.7
                 mc.start_linear_motion(0.2, 0.0, 0.0)
                 time.sleep(correction_time)
                 mc.stop()
@@ -508,7 +549,7 @@ def combined_flight(scf, position_lock, shared_position):
                 time.sleep(2)
                 with position_lock:
                     dmy = shared_position["dmy"]
-                correction_time = abs(dmy / 0.2) + 0.5
+                correction_time = abs(dmy / 0.2) + 0.7
                 mc.start_linear_motion(-0.2, 0.0, 0.0)
                 time.sleep(correction_time)
                 mc.stop()
@@ -526,10 +567,87 @@ def combined_flight(scf, position_lock, shared_position):
 
         mx_right_ready.set()
         mc.stop()
-        time.sleep(2)
+
+        time_temp = time.time()
+        time_end = time_temp + 2
+
+        autocorrect_position_x_neg.clear()
+        autocorrect_position_x_pos.clear()
+        autocorrect_position_y_neg.clear()
+        autocorrect_position_y_pos.clear()
+        while time.time() < time_end:
+            if autocorrect_position_x_neg.is_set():
+                time_end += 2.1
+                print("[AUTO-X] X drift trigger fired. Pausing flight.")
+                mc.stop()
+                time.sleep(2)
+                with position_lock:
+                    dmx = shared_position["dmx"]
+                correction_time = abs(dmx / 0.2) + 0.7
+                mc.start_linear_motion(0.0, -0.2, 0.0)
+                time_end += correction_time + 0.1
+                time.sleep(correction_time)
+                mc.stop()
+                autocorrect_position_x_neg.clear()
+                time_end += 2.1
+                time.sleep(2)
+
+            elif autocorrect_position_x_pos.is_set():
+                time_end += 2.1
+                print("[AUTO-X] X drift trigger fired. Pausing flight.")
+                mc.stop()
+                time.sleep(2)
+                with position_lock:
+                    dmx = shared_position["dmx"]
+                correction_time = abs(dmx / 0.2) + 0.7
+                mc.start_linear_motion(0.0, 0.2, 0.0)
+                time_end += correction_time + 0.1
+                time.sleep(correction_time)
+                mc.stop()
+                autocorrect_position_x_pos.clear()
+                time_end += 2.1
+                time.sleep(2)
+
+            elif autocorrect_position_y_neg.is_set():
+                time_end += 2.1
+                print("[AUTO-Y] Y drift trigger fired. Pausing flight.")
+                mc.stop()
+                time.sleep(2)
+                with position_lock:
+                    dmy = shared_position["dmy"]
+                correction_time = abs(dmy / 0.2) + 0.7
+                mc.start_linear_motion(0.2, 0.0, 0.0)
+                time_end += correction_time + 0.1
+                time.sleep(correction_time)
+                mc.stop()
+                autocorrect_position_y_neg.clear()
+                time_end += 2.1
+                time.sleep(2)
+
+            elif autocorrect_position_y_pos.is_set():
+                time_end += 2.1
+                print("[AUTO-Y] Y drift trigger fired. Pausing flight.")
+                mc.stop()
+                time.sleep(2)
+                with position_lock:
+                    dmy = shared_position["dmy"]
+                correction_time = abs(dmy / 0.2) + 0.7
+                mc.start_linear_motion(-0.2, 0.0, 0.0)
+                time_end += correction_time + 0.1
+                time.sleep(correction_time)
+                mc.stop()
+                autocorrect_position_y_pos.clear()
+                time_end += 2.1
+                time.sleep(2)
+
+            time.sleep(0.01)
 
         # SEGMENT 2
         mc.start_linear_motion(0.0, -0.2, 0.0)
+        autocorrect_position_x_neg.clear()
+        autocorrect_position_x_pos.clear()
+        autocorrect_position_y_neg.clear()
+        autocorrect_position_y_pos.clear()
         while True:
             if autocorrect_position_x_neg.is_set():
                 print("[AUTO-X] X drift trigger fired. Pausing flight.")
@@ -537,7 +655,7 @@ def combined_flight(scf, position_lock, shared_position):
                 time.sleep(2)
                 with position_lock:
                     dmx = shared_position["dmx"]
-                correction_time = abs(dmx / 0.2) + 0.5
+                correction_time = abs(dmx / 0.2) + 0.7
                 mc.start_linear_motion(0.0, -0.2, 0.0)
                 time.sleep(correction_time)
                 mc.stop()
@@ -551,7 +669,7 @@ def combined_flight(scf, position_lock, shared_position):
                 time.sleep(2)
                 with position_lock:
                     dmx = shared_position["dmx"]
-                correction_time = abs(dmx / 0.2) + 0.5
+                correction_time = abs(dmx / 0.2) + 0.7
                 mc.start_linear_motion(0.0, 0.2, 0.0)
                 time.sleep(correction_time)
                 mc.stop()
@@ -565,7 +683,7 @@ def combined_flight(scf, position_lock, shared_position):
                 time.sleep(2)
                 with position_lock:
                     dmy = shared_position["dmy"]
-                correction_time = abs(dmy / 0.2) + 0.5
+                correction_time = abs(dmy / 0.2) + 0.7
                 mc.start_linear_motion(0.2, 0.0, 0.0)
                 time.sleep(correction_time)
                 mc.stop()
@@ -579,7 +697,7 @@ def combined_flight(scf, position_lock, shared_position):
                 time.sleep(2)
                 with position_lock:
                     dmy = shared_position["dmy"]
-                correction_time = abs(dmy / 0.2) + 0.5
+                correction_time = abs(dmy / 0.2) + 0.7
                 mc.start_linear_motion(-0.2, 0.0, 0.0)
                 time.sleep(correction_time)
                 mc.stop()
@@ -597,10 +715,88 @@ def combined_flight(scf, position_lock, shared_position):
 
         my_back_ready.set()
         mc.stop()
-        time.sleep(2)
+        
+        time_temp = time.time()
+        time_end = time_temp + 2
+
+        autocorrect_position_x_neg.clear()
+        autocorrect_position_x_pos.clear()
+        autocorrect_position_y_neg.clear()
+        autocorrect_position_y_pos.clear()
+
+        while time.time() < time_end:
+            if autocorrect_position_x_neg.is_set():
+                time_end += 2.1
+                print("[AUTO-X] X drift trigger fired. Pausing flight.")
+                mc.stop()
+                time.sleep(2)
+                with position_lock:
+                    dmx = shared_position["dmx"]
+                correction_time = abs(dmx / 0.2) + 0.7
+                mc.start_linear_motion(0.0, -0.2, 0.0)
+                time_end += correction_time + 0.1
+                time.sleep(correction_time)
+                mc.stop()
+                autocorrect_position_x_neg.clear()
+                time_end += 2.1
+                time.sleep(2)
+
+            elif autocorrect_position_x_pos.is_set():
+                time_end += 2.1
+                print("[AUTO-X] X drift trigger fired. Pausing flight.")
+                mc.stop()
+                time.sleep(2)
+                with position_lock:
+                    dmx = shared_position["dmx"]
+                correction_time = abs(dmx / 0.2) + 0.7
+                mc.start_linear_motion(0.0, 0.2, 0.0)
+                time_end += correction_time + 0.1
+                time.sleep(correction_time)
+                mc.stop()
+                autocorrect_position_x_pos.clear()
+                time_end += 2.1
+                time.sleep(2)
+
+            elif autocorrect_position_y_neg.is_set():
+                time_end += 2.1
+                print("[AUTO-Y] Y drift trigger fired. Pausing flight.")
+                mc.stop()
+                time.sleep(2)
+                with position_lock:
+                    dmy = shared_position["dmy"]
+                correction_time = abs(dmy / 0.2) + 0.7
+                mc.start_linear_motion(0.2, 0.0, 0.0)
+                time_end += correction_time + 0.1
+                time.sleep(correction_time)
+                mc.stop()
+                autocorrect_position_y_neg.clear()
+                time_end += 2.1
+                time.sleep(2)
+
+            elif autocorrect_position_y_pos.is_set():
+                time_end += 2.1
+                print("[AUTO-Y] Y drift trigger fired. Pausing flight.")
+                mc.stop()
+                time.sleep(2)
+                with position_lock:
+                    dmy = shared_position["dmy"]
+                correction_time = abs(dmy / 0.2) + 0.7
+                mc.start_linear_motion(-0.2, 0.0, 0.0)
+                time_end += correction_time + 0.1
+                time.sleep(correction_time)
+                mc.stop()
+                autocorrect_position_y_pos.clear()
+                time_end += 2.1
+                time.sleep(2)
+
+            time.sleep(0.01)
 
         # SEGMENT 3
         mc.start_linear_motion(-0.2, 0.0, 0.0)
+        autocorrect_position_x_neg.clear()
+        autocorrect_position_x_pos.clear()
+        autocorrect_position_y_neg.clear()
+        autocorrect_position_y_pos.clear()
         while True:
             if autocorrect_position_x_neg.is_set():
                 print("[AUTO-X] X drift trigger fired. Pausing flight.")
@@ -608,7 +804,7 @@ def combined_flight(scf, position_lock, shared_position):
                 time.sleep(2)
                 with position_lock:
                     dmx = shared_position["dmx"]
-                correction_time = abs(dmx / 0.2) + 0.5
+                correction_time = abs(dmx / 0.2) + 0.7
                 mc.start_linear_motion(0.0, -0.2, 0.0)
                 time.sleep(correction_time)
                 mc.stop()
@@ -622,7 +818,7 @@ def combined_flight(scf, position_lock, shared_position):
                 time.sleep(2)
                 with position_lock:
                     dmx = shared_position["dmx"]
-                correction_time = abs(dmx / 0.2) + 0.5
+                correction_time = abs(dmx / 0.2) + 0.7
                 mc.start_linear_motion(0.0, 0.2, 0.0)
                 time.sleep(correction_time)
                 mc.stop()
@@ -636,7 +832,7 @@ def combined_flight(scf, position_lock, shared_position):
                 time.sleep(2)
                 with position_lock:
                     dmy = shared_position["dmy"]
-                correction_time = abs(dmy / 0.2) + 0.5
+                correction_time = abs(dmy / 0.2) + 0.7
                 mc.start_linear_motion(0.2, 0.0, 0.0)
                 time.sleep(correction_time)
                 mc.stop()
@@ -650,7 +846,7 @@ def combined_flight(scf, position_lock, shared_position):
                 time.sleep(2)
                 with position_lock:
                     dmy = shared_position["dmy"]
-                correction_time = abs(dmy / 0.2) + 0.5
+                correction_time = abs(dmy / 0.2) + 0.7
                 mc.start_linear_motion(-0.2, 0.0, 0.0)
                 time.sleep(correction_time)
                 mc.stop()
@@ -668,10 +864,88 @@ def combined_flight(scf, position_lock, shared_position):
 
         mx_left_ready.set()
         mc.stop()
-        time.sleep(2)
+        
+        time_temp = time.time()
+        time_end = time_temp + 2
+
+        autocorrect_position_x_neg.clear()
+        autocorrect_position_x_pos.clear()
+        autocorrect_position_y_neg.clear()
+        autocorrect_position_y_pos.clear()
+
+        while time.time() < time_end:
+            if autocorrect_position_x_neg.is_set():
+                time_end += 2.1
+                print("[AUTO-X] X drift trigger fired. Pausing flight.")
+                mc.stop()
+                time.sleep(2)
+                with position_lock:
+                    dmx = shared_position["dmx"]
+                correction_time = abs(dmx / 0.2) + 0.7
+                mc.start_linear_motion(0.0, -0.2, 0.0)
+                time_end += correction_time + 0.1
+                time.sleep(correction_time)
+                mc.stop()
+                autocorrect_position_x_neg.clear()
+                time_end += 2.1
+                time.sleep(2)
+
+            elif autocorrect_position_x_pos.is_set():
+                time_end += 2.1
+                print("[AUTO-X] X drift trigger fired. Pausing flight.")
+                mc.stop()
+                time.sleep(2)
+                with position_lock:
+                    dmx = shared_position["dmx"]
+                correction_time = abs(dmx / 0.2) + 0.7
+                mc.start_linear_motion(0.0, 0.2, 0.0)
+                time_end += correction_time + 0.1
+                time.sleep(correction_time)
+                mc.stop()
+                autocorrect_position_x_pos.clear()
+                time_end += 2.1
+                time.sleep(2)
+
+            elif autocorrect_position_y_neg.is_set():
+                time_end += 2.1
+                print("[AUTO-Y] Y drift trigger fired. Pausing flight.")
+                mc.stop()
+                time.sleep(2)
+                with position_lock:
+                    dmy = shared_position["dmy"]
+                correction_time = abs(dmy / 0.2) + 0.7
+                mc.start_linear_motion(0.2, 0.0, 0.0)
+                time_end += correction_time + 0.1
+                time.sleep(correction_time)
+                mc.stop()
+                autocorrect_position_y_neg.clear()
+                time_end += 2.1
+                time.sleep(2)
+
+            elif autocorrect_position_y_pos.is_set():
+                time_end += 2.1
+                print("[AUTO-Y] Y drift trigger fired. Pausing flight.")
+                mc.stop()
+                time.sleep(2)
+                with position_lock:
+                    dmy = shared_position["dmy"]
+                correction_time = abs(dmy / 0.2) + 0.7
+                mc.start_linear_motion(-0.2, 0.0, 0.0)
+                time_end += correction_time + 0.1
+                time.sleep(correction_time)
+                mc.stop()
+                autocorrect_position_y_pos.clear()
+                time_end += 2.1
+                time.sleep(2)
+
+            time.sleep(0.01)
 
         # SEGMENT 4
         mc.start_linear_motion(0.0, 0.2, 0.0)
+        autocorrect_position_x_neg.clear()
+        autocorrect_position_x_pos.clear()
+        autocorrect_position_y_neg.clear()
+        autocorrect_position_y_pos.clear()
         while True:
             if autocorrect_position_x_neg.is_set():
                 print("[AUTO-X] X drift trigger fired. Pausing flight.")
@@ -679,7 +953,7 @@ def combined_flight(scf, position_lock, shared_position):
                 time.sleep(2)
                 with position_lock:
                     dmx = shared_position["dmx"]
-                correction_time = abs(dmx / 0.2) + 0.5
+                correction_time = abs(dmx / 0.2) + 0.7
                 mc.start_linear_motion(0.0, -0.2, 0.0)
                 time.sleep(correction_time)
                 mc.stop()
@@ -693,7 +967,7 @@ def combined_flight(scf, position_lock, shared_position):
                 time.sleep(2)
                 with position_lock:
                     dmx = shared_position["dmx"]
-                correction_time = abs(dmx / 0.2) + 0.5
+                correction_time = abs(dmx / 0.2) + 0.7
                 mc.start_linear_motion(0.0, 0.2, 0.0)
                 time.sleep(correction_time)
                 mc.stop()
@@ -707,7 +981,7 @@ def combined_flight(scf, position_lock, shared_position):
                 time.sleep(2)
                 with position_lock:
                     dmy = shared_position["dmy"]
-                correction_time = abs(dmy / 0.2) + 0.5
+                correction_time = abs(dmy / 0.2) + 0.7
                 mc.start_linear_motion(0.2, 0.0, 0.0)
                 time.sleep(correction_time)
                 mc.stop()
@@ -721,7 +995,7 @@ def combined_flight(scf, position_lock, shared_position):
                 time.sleep(2)
                 with position_lock:
                     dmy = shared_position["dmy"]
-                correction_time = abs(dmy / 0.2) + 0.5
+                correction_time = abs(dmy / 0.2) + 0.7
                 mc.start_linear_motion(-0.2, 0.0, 0.0)
                 time.sleep(correction_time)
                 mc.stop()
@@ -1541,7 +1815,7 @@ if __name__ == '__main__':
    cflib.crtp.init_drivers()
 
 
-   run_id = "run12"
+   run_id = "run14"
 
 
    log_dict_state = {}
@@ -1631,7 +1905,7 @@ if __name__ == '__main__':
            (0, 0, 1.5),
            (-0.6, 0.6, 1.2),
            (0.8, -0.4, 0.6),
-           (0.3, 0.5, 1.0)
+           (0.3, 0.7, 1.0)
        ]
        '''
 
