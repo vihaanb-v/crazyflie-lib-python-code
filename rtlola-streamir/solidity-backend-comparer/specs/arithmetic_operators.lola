@@ -1,0 +1,11 @@
+input a : Int64
+input b : Int64
+
+output c := a + b
+output d := a - b
+output e := a * b
+output f := a / b
+
+output g := (a + b) * c
+output h := if c > d then e else d
+output i := if (a + b) > c then a - b else c * d

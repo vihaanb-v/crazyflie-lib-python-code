@@ -1,0 +1,7 @@
+input a : UInt64
+input b : UInt64
+
+output c
+  spawn when a > 50
+  eval @1Hz with a.aggregate(over: 5s, using: sum)
+  close when a > 80

@@ -1,0 +1,63 @@
+import math
+/// Position
+input gps__latitude :Float64
+input gps__longitude :Float64
+input gps__height :Float64
+/// Velocity
+input gps__speed_x :Float64
+input gps__speed_y :Float64
+input gps__speed_z :Float64
+/// Accuracy Checks
+input gps__horizontal_accuracy :Float64
+input gps__vertical_accuracy :Float64
+
+///****************///
+///****GEOFENCE****///
+///****************///
+constant c_epsilon : Float64 := 0.0000001
+constant close_to_geofence : Float64 := 3.00000000000000000000
+constant min_time_to : Float64 := 5.0
+constant inside_g1: Bool := true
+constant inside_g2: Bool := true
+constant inside_g3: Bool := true
+
+// Computes the vehicle line
+output lat_in_rad eval when gps_condition with gps__latitude  * 3.14159265359 / 180.0
+output lon_in_rad eval when gps_condition with gps__longitude  * 3.14159265359 / 180.0
+output filtered_height eval when gps_condition with gps__height
+output velocity_xy eval when gps_condition with sqrt(gps__speed_x**2.0 + gps__speed_y**2.0)
+output initial_height eval when gps_condition with initial_height.offset(by: -1).defaults(to: gps__height)
+output x eval when gps_condition with lat_in_rad
+output y eval when gps_condition with lon_in_rad
+output delta_x eval when gps_condition with x - x.last(or: x)
+output delta_y eval when gps_condition with y - y.last(or: x)
+output isFnc eval when gps_condition with x != x.last(or: x)
+output gradient eval when gps_condition with if isFnc then delta_y / delta_x else 0.0
+output y_intercept eval when gps_condition with y - (gradient * x)
+output dstToPnt eval when gps_condition with sqrt(delta_x**2.0 + delta_y**2.0)
+output orientation_x eval when gps_condition with if abs(delta_x) < c_epsilon then false else delta_x < 0.0
+output orientation_y eval when gps_condition with if abs(delta_y) < c_epsilon then false else delta_y < 0.0
+
+constant height_violation : Bool := false
+
+///******************///
+///****Conditions****///
+///******************///
+output condition_horizontal_accuracy := ((gps__horizontal_accuracy) < 0.01)
+output condition_vertical_accuracy := ((gps__vertical_accuracy) < 0.01)
+output gps_condition := condition_horizontal_accuracy && condition_vertical_accuracy
+
+// Polygonline g0: (0.926983484018018, 62.82684036783239) to (22.283157838978774, 56.689116113699455)
+constant gradient_g1_0 :Float64 := -3.4794939411916785
+constant y_intercept_g1_0 :Float64 := 66.05227378405783
+output g1_0_is_intersecting eval when gps_condition with gradient != gradient_g1_0 or y_intercept = y_intercept_g1_0
+output g1_0_x eval when gps_condition with if isFnc and g1_0_is_intersecting then (y_intercept - y_intercept_g1_0) / (gradient_g1_0 - gradient) else x
+output g1_0_y eval when gps_condition with gradient_g1_0 * g1_0_x + y_intercept_g1_0
+output g1_0_x_deg eval when gps_condition with g1_0_x * 180.0 / 3.14159265359
+output g1_0_y_deg eval when gps_condition with g1_0_y * 180.0 / 3.14159265359
+output g1_0_orientation eval when gps_condition with ( (if abs(g1_0_x - x.last(or: x)) < c_epsilon then false else g1_0_x -  x.last(or: x) < 0.0 ) = orientation_x ) and ( (if abs(g1_0_y -  y.last(or: y)) < c_epsilon then false else g1_0_y - y.last(or: y) < 0.0 ) = orientation_y)
+output g1_0_violated_cnd eval when gps_condition with (!isFnc or g1_0_is_intersecting) and g1_0_orientation and (g1_0_x < 22.283157838978774 and g1_0_x > 62.82684036783239)and (g1_0_y < 56.689116113699455 and g1_0_y > 62.82684036783239)
+output g1_0_is_violated eval when gps_condition with g1_0_violated_cnd and (sqrt((x.last(or: x) - g1_0_x)**2.0 + (y.last(or: y) - g1_0_y)**2.0) <= dstToPnt)
+output g1_0_distance_to eval when gps_condition with if g1_0_violated_cnd then 6371.0 * 2.0 * arcsin(sqrt((sin((x - g1_0_x) / 2.0) ** 2.0) + cos(x) * cos(g1_0_x) * (sin((y - g1_0_y) / 2.0) ** 2.0))) * 1000.0 else 1000.0
+output g1_0_time_to eval when gps_condition with g1_0_distance_to / velocity_xy
+trigger if gps_condition then g1_0_is_violated.hold(or: false) else false "Violation: g1_0!"

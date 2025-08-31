@@ -1,0 +1,7 @@
+input a : Int64
+input b : Int64
+
+output c := a.offset(by:-1).defaults(to:0)
+output d := a.offset(by:-1).defaults(to:2)
+output e := b.offset(by:-3).defaults(to:a)
+output f := b.offset(by:-3).defaults(to:a.offset(by:-1).defaults(to:0))

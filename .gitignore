@@ -24,4 +24,19 @@ docs/api/cflib
 !docs/api/cflib/index.md
 
 #vscode config folder
-.vscode/
+.vscode
+
+# Rust
+**/target/
+**/*.rlib
+**/*.rmeta
+
+# C/C++
+**/*.o
+**/*.a
+**/*.so
+**/*.dylib
+
+# Python
+**/__pycache__/
+**/*.py[cod]/

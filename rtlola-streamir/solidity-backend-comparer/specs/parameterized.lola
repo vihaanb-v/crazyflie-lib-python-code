@@ -1,0 +1,9 @@
+input a : Int64
+input b : Int64
+
+output c(p)
+  spawn with a when a > 5
+  eval when p == a with c(p).last(or: 0) + 1
+  close when a < 50
+
+output d := c(a).hold(or: 0)

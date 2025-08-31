@@ -1,0 +1,8 @@
+input a : UInt64
+input b : UInt64
+
+output c := a + b + e.hold(or: 0)
+output d @a := a + c.hold(or: 0)
+output e @a := d.last(or: 0) + 1
+output f @b := f.last(or: 0) + 1
+

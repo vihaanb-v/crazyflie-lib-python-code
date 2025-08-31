@@ -1,0 +1,4 @@
+input a : Float64
+input b : Float64
+
+output c@5s := a.aggregate(over: 20s, using: variance).defaults(to: 0.0)

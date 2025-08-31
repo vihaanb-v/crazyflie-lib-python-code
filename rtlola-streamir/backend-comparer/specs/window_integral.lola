@@ -1,0 +1,5 @@
+input a : Int64
+input b : Int64
+output c := cast<Int64,Float64>(a)
+
+output d : Float64 @1Hz := c.aggregate(over: 5s, using: integral)

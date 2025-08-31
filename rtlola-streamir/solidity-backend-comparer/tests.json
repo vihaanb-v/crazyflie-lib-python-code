@@ -1,0 +1,34 @@
+[
+  {
+	"spec": "specs/arithmetic_operators.lola",
+	"trace": [
+	  "traces/two-ints.csv",
+	  "traces/two-ints-async.csv"
+	]
+  },
+  {
+	"spec": "specs/boolean_operators.lola",
+	"trace": [
+	  "traces/two-bools.csv"
+	]
+  },
+  {
+	"spec": "specs/lookups.lola",
+	"trace": [
+	  "traces/two-ints-async.csv"
+	]
+  },
+  {
+	"spec": "specs/spawn_and_close.lola",
+	"trace": [
+	  "traces/two-ints.csv"
+	],
+	"streams": ["d"]
+  },
+  {
+	"spec": "specs/parameterized.lola",
+	"trace": [
+	  "traces/two-ints.csv"
+	]
+  }
+]

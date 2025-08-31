@@ -1,0 +1,179 @@
+[
+	{
+		"spec": "specs/simple_sync.lola",
+		"traces": [
+			"traces/simple.csv",
+			"traces/two-ints.csv"
+		]
+	},
+	{
+		"spec": "specs/simple_offset.lola",
+		"traces": [
+			"traces/simple.csv",
+			"traces/two-ints.csv"
+		]
+	},
+	{
+		"spec": "specs/simple_hold.lola",
+		"traces": [
+			"traces/simple.csv",
+			"traces/two-ints.csv"
+		]
+	},
+	{
+		"spec": "specs/simple_ac.lola",
+		"traces": [
+			"traces/simple.csv",
+			"traces/two-ints.csv"
+		]
+	},
+	{
+		"spec": "specs/types.lola",
+		"traces": [
+			"traces/types.csv"
+		]
+	},
+	{
+		"spec": "specs/trigger.lola",
+		"traces": [
+			"traces/simple.csv",
+			"traces/two-ints.csv"
+		]
+	},
+	{
+		"spec": "specs/evaluation_order.lola",
+		"traces": [
+			"traces/simple.csv",
+			"traces/two-ints.csv"
+		]
+	},
+	{
+		"spec": "specs/functions.lola",
+		"traces": [
+			"traces/types.csv"
+		]
+	},
+	{
+		"spec": "specs/simple_timed.lola",
+		"traces": [
+			"traces/small_timed.csv"
+		]
+	},
+	{
+		"spec": "specs/different_window_operations.lola",
+		"traces": [
+			"traces/two-floats.csv"
+		]
+	},
+	{
+		"spec": "specs/different_window_frequencies.lola",
+		"traces": [
+			"traces/two-ints.csv",
+			"traces/two-ints-floattime.csv"
+		]
+	},
+	{
+		"spec": "specs/window_integral.lola",
+		"traces": [
+			"traces/two-ints.csv",
+			"traces/two-ints-floattime.csv"
+		]
+	},
+	{
+		"spec": "specs/window_over_exact.lola",
+		"traces": [
+			"traces/two-ints.csv",
+			"traces/two-ints-floattime.csv"
+		]
+	},
+	{
+		"spec": "specs/window_bools.lola",
+		"traces": [
+			"traces/two-bools.csv"
+		]
+	},
+	{
+		"spec": "specs/get_access.lola",
+		"traces": [
+			"traces/two-ints.csv"
+		]
+	},
+	{
+		"spec": "specs/is_fresh.lola",
+		"traces": [
+			"traces/two-ints.csv"
+		]
+	},
+	{
+		"spec": "specs/filter_condition.lola",
+		"traces": [
+			"traces/two-ints.csv",
+			"traces/two-ints-floattime.csv"
+		]
+	},
+	{
+		"spec": "specs/2frequencies.lola",
+		"traces": [
+			"traces/two-ints.csv"
+		]
+	},
+	{
+		"spec": "specs/parameterized_periodic.lola",
+		"traces": [
+			"traces/two-ints.csv"
+		],
+		"streams": ["c_0", "c_1", "c_2", "c_3", "c_4", "c_5"]
+	  
+	},
+	{
+		"spec": "specs/spawn_and_close.lola",
+		"traces": [
+			"traces/two-floats.csv"
+		]
+	},
+	{
+		"spec": "specs/dynamic_periodic.lola",
+		"traces": [
+			"traces/two-ints.csv"
+		]
+	},
+	{
+		"spec": "specs/multiple_evals.lola",
+		"traces": [
+			"traces/two-ints.csv"
+		]
+	},
+	{
+		"spec": "specs/instance_aggregation.lola",
+		"traces": [
+			"traces/two-ints.csv"
+		],
+		"streams": ["d", "e"]
+	},
+	{
+		"spec": "specs/geofence.lola",
+		"traces": [
+			"traces/geofence.csv"
+		]
+	},
+	{
+		"spec": "specs/intruder.lola",
+		"traces": [
+			"traces/intruder.csv"
+		],
+		"streams": ["mytrigger1", "mytrigger2", "mytrigger3", "mytrigger4", "mytrigger5", "mytrigger6", "mytrigger7", "mytrigger8"]
+	},
+	{
+		"spec": "specs/fairness.lola",
+		"traces": [
+			"traces/fairness.csv"
+		],
+		"streams": ["fp_ratio_0", "fp_ratio_2", "tp_ratio_0", "tp_ratio_2"]
+	},
+	{
+		"spec": "specs/spawned_unparameterized_window.lola",
+		"traces": [
+		  "traces/two-ints.csv"
+		]
+	}
+]

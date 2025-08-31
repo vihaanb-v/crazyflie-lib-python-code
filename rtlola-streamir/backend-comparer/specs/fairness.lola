@@ -1,0 +1,83 @@
+import math
+
+input event : UInt64
+input id : Int64
+input race : UInt64
+input score : Int64
+
+constant COMPASS :UInt64 := 0
+constant RECIDIVISM :UInt64 := 1
+constant AFRICAN_AMERICAN :UInt64 := 0
+constant ASIAN :UInt64 := 1
+constant CAUCASIAN :UInt64 := 2
+constant HISPANIC :UInt64 := 3
+constant NATIVE_AMERICAN :UInt64 := 4
+constant OTHER :UInt64 := 5
+
+/// Defendant Information
+output days_per_user(user)
+  spawn with id
+  eval @Global(1d) with days_per_user(user).offset(by: -1).defaults(to: 0) + 1
+  close @Global(1d) when days_per_user(user).hold(or: 0) = 730
+
+output has_re(user)
+    spawn with id
+    eval when id == user with event == RECIDIVISM
+    close @Global(1d) when days_per_user(user).hold(or: 0) = 730
+
+output timed_has_re(user)
+    spawn with id
+    eval @Global(1d) with days_per_user(user).hold(or: 0) = 730 && has_re(user).aggregate(over: 730d, using: exists)
+    close @Global(1d) when days_per_user(user).hold(or: 0) = 730
+
+output tp_event(i, r, s)
+  spawn with (id, race, score)
+  eval @Global(1d) when days_per_user(i).hold(or: 0) = 730 && timed_has_re(i)
+  close @Global(1d) when days_per_user(i).hold(or: 0) = 730
+
+output fp_event(i, r, s)
+  spawn with (id, race, score)
+  eval @Global(1d) when days_per_user(i).hold(or: 0) = 730 && !timed_has_re(i)
+  close @Global(1d) when days_per_user(i).hold(or: 0) = 730
+
+/// TP Ratio
+output abs_reoffendet(r) : UInt64 
+    spawn with race
+    eval @Global(1d) with abs_reoffendet(r).offset(by: -1).defaults(to: 100) + tp_event.aggregate(over_instances: all(where: (_, cur_r, cur_s) => cur_r = r), using: count)
+
+output abs_hr_reoffendet(r) : UInt64
+  spawn with race
+  eval @Global(1d) with abs_hr_reoffendet(r).offset(by: -1).defaults(to: 50) + tp_event.aggregate(over_instances: all(where: (_, cur_r, cur_s) => cur_r = r && cur_s > 6), using: count)
+
+output tp_ratio(races)
+    spawn with race
+    eval when abs_reoffendet(races) != 0 with cast<UInt64, Float64>(abs_hr_reoffendet(races)) / cast<UInt64, Float64>(abs_reoffendet(races))
+
+/// FP Ratio
+output abs_not_reoffendet(r) : UInt64 
+    spawn with race
+    eval @Global(1d) with abs_not_reoffendet(r).offset(by: -1).defaults(to: 100) + fp_event.aggregate(over_instances: all(where: (_, cur_r, cur_s) => cur_r = r), using: count)
+
+output abs_hr_not_reoffendet(r) : UInt64
+  spawn with race
+  eval @Global(1d) with abs_hr_not_reoffendet(r).offset(by: -1).defaults(to: 50) + fp_event.aggregate(over_instances: all(where: (_, cur_r, cur_s) => cur_r = r && cur_s > 6), using: count)
+
+output fp_ratio(races)
+    spawn with race
+    eval when abs_not_reoffendet(races) != 0 with cast<UInt64, Float64>(abs_hr_not_reoffendet(races)) / cast<UInt64, Float64>(abs_not_reoffendet(races))
+
+/// Unrolling to get all data
+#[verbosity="violations"]
+output tp_ratio_0 @Global(1d) := tp_ratio(AFRICAN_AMERICAN).hold(or: 0.0)
+#[verbosity="violations"]
+output tp_ratio_2 @Global(1d) := tp_ratio(CAUCASIAN).hold(or: 0.0)
+#[verbosity="violations"]
+output fp_ratio_0 @Global(1d) := fp_ratio(AFRICAN_AMERICAN).hold(or: 0.0)
+#[verbosity="violations"]
+output fp_ratio_2 @Global(1d) := fp_ratio(CAUCASIAN).hold(or: 0.0)
+
+#[verbosity="violations"]
+output tp_ratio_0_2_diff := abs(tp_ratio_0 - tp_ratio_2)
+#[verbosity="violations"]
+output fp_ratio_0_2_diff := abs(fp_ratio_0 - fp_ratio_2)
+

@@ -1,0 +1,11 @@
+input a : Int64
+
+output b(p)
+    spawn with a
+    eval when p = a with b(p).offset(by: -1).defaults(to: 0) + 1
+    // close when b(p) == 3 
+
+output c(p1, p2)
+    spawn with (a, a)
+    eval when p1 = a && p2 = a with c(p1, p2).offset(by: -1).defaults(to: 0) + 1
+    // close when c(p1, p2) == 3 

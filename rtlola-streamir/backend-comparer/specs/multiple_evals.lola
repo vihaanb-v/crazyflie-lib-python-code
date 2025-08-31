@@ -1,0 +1,9 @@
+input a : UInt64
+input b : UInt64
+
+output c
+  eval @a when a == 0 with a + 1
+  eval @a when a < 30 with a + 2
+  eval @a when a > 60 with a + 3
+  eval @a with a + 4
+  eval @a with a + 5 // should never match

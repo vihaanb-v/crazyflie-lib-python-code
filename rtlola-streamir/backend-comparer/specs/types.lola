@@ -1,0 +1,10 @@
+input a : Int64
+input b : UInt64
+input c : Bool
+input d : Float64
+
+output e := a + cast<UInt64,Int64>(b)
+output f := if c then a else cast<UInt64,Int64>(b)
+output g := cast<Int64,Float64>(a) + d
+output h := c.offset(by:-1).defaults(to:false)
+output i@c := d.hold().defaults(to:0.0)

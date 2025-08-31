@@ -1,0 +1,33 @@
+import math
+input lat: Float
+input lon: Float
+input intruder_id: UInt
+input intruder_lat: Float
+input intruder_lon: Float
+
+output intruder_pos(id)
+    spawn with intruder_id
+    eval when id = intruder_id with  (intruder_lat, intruder_lon)
+
+output distance(id)
+    spawn with intruder_id
+    eval @(intruder_id && intruder_lat && intruder_lon)
+    when id == intruder_id
+    with sqrt((intruder_pos(id).0 - lat.hold(or: 0.0))**2.0 + (intruder_pos(id).1 - lon.hold(or: 0.0))**2.0)
+
+output closer(id)
+    spawn with intruder_id
+    eval when id = intruder_id with distance(id).offset(by: -1).defaults(to: distance(id)) >= distance(id)
+
+output mytrigger(id)
+    spawn when distance(intruder_id).hold(or: 1.0) < 0.1 with intruder_id
+    eval @1Hz when closer(id).aggregate(over_exactly: 5s, using: forall).defaults(to: false) with mytrigger(id).last(or: 0) + 1
+
+output mytrigger1 @1Hz := mytrigger(1).hold(or: 0)
+output mytrigger2 @1Hz := mytrigger(2).hold(or: 0)
+output mytrigger3 @1Hz := mytrigger(3).hold(or: 0)
+output mytrigger4 @1Hz := mytrigger(4).hold(or: 0)
+output mytrigger5 @1Hz := mytrigger(5).hold(or: 0)
+output mytrigger6 @1Hz := mytrigger(6).hold(or: 0)
+output mytrigger7 @1Hz := mytrigger(7).hold(or: 0)
+output mytrigger8 @1Hz := mytrigger(8).hold(or: 0)

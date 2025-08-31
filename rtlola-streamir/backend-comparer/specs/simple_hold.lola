@@ -1,0 +1,6 @@
+input a : Int64
+input b : Int64
+
+output c@a := b.hold().defaults(to:0)
+output d := b + a.hold().defaults(to:0)
+output e := b + a.hold().defaults(to:b)

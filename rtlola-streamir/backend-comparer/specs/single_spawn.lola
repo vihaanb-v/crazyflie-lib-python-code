@@ -1,0 +1,5 @@
+input a : Float64
+
+output b 
+    spawn when a = 5.0 
+    eval when a > 10.0 with b.offset(by: -1).defaults(to: 0) + 1

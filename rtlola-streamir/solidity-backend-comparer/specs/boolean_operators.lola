@@ -1,0 +1,8 @@
+input a : Bool
+input b : Bool
+
+output c := a && b
+output d := a || b
+output e := !a
+output f := (a || b) && c
+output g := !(a && b)

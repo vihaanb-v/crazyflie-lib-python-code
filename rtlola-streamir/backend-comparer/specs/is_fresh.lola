@@ -1,0 +1,4 @@
+input a : Int64
+input b : Int64
+
+output c@b := if a.is_fresh() then b else 0

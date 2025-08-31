@@ -1,0 +1,6 @@
+input a : Int64
+input b : Int64
+
+output c := e
+output d := e.offset(by:-1).defaults(to:0)
+output e := a

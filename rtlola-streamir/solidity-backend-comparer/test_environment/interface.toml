@@ -1,0 +1,17 @@
+[[function]]
+name="func_a"
+[[function.argument]]
+name="a"
+
+[[function]]
+name="func_b"
+[[function.argument]]
+name="b"
+
+[[function]]
+name="func_a_b"
+[[function.argument]]
+name="a"
+[[function.argument]]
+name="b"
+

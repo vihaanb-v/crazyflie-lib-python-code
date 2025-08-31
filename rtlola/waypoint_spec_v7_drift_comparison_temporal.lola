@@ -1,0 +1,35 @@
+import math
+
+
+constant threshold_minimal: Float64 := 0.25
+constant threshold_excessive: Float64 := 0.50
+
+
+// === Inputs ===
+input state_x: Float64
+input state_y: Float64
+input state_z: Float64
+
+
+input multi_x: Float64
+input multi_y: Float64
+input multi_z: Float64
+
+
+// --- helpers (small, readable) ---
+output dx := state_x - multi_x
+output dy := state_y - multi_y
+output dz := state_z - multi_z
+
+
+output net_drift := sqrt(dx*dx + dy*dy + dz*dz)
+
+
+output warning_minimal: Bool @10Hz := net_drift.hold(or: 0.0) > threshold_minimal
+#[warning]
+trigger warning_minimal "Warning: Difference in position estimate between stateEstimate and MultiRanger estimate > 0.35 m"
+
+
+output warning_excessive: Bool @10Hz := net_drift.hold(or: 0.0) > threshold_excessive
+#[warning]
+trigger warning_excessive "Warning: Difference in position estimate between stateEstimate and MultiRanger estimate > 0.35 m"

@@ -1,0 +1,7 @@
+input a : Float64
+input b : Float64
+
+output c@1s := a.aggregate(over:5s, using: sum)
+output d@1s := a.aggregate(over:5s, using: count)
+output e@1s := a.aggregate(over:5s, using: min).defaults(to:-1.0)
+output f@1s := a.aggregate(over:5s, using: average).defaults(to:-2.0)

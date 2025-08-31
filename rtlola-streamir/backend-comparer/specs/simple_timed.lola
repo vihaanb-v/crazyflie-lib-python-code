@@ -1,0 +1,3 @@
+input a : Int64
+output c @1Hz := a.hold().defaults(to:0)
+trigger c > 5 "log:test"

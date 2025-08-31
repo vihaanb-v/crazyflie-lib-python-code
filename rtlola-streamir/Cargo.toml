@@ -1,0 +1,3 @@
+[workspace]
+resolver = "2"
+members = ["rtlola-streamir-interpreter", "rtlola2rust", "rtlola-streamir", "backend-comparer", "rtlola2solidity", "solidity-backend-comparer"]

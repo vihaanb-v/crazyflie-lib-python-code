@@ -1,0 +1,12 @@
+input a : Float64
+input b : Float64
+
+output b2
+    spawn when a = 5.0 
+    eval when a > 10.0 with b2.offset(by: -1).defaults(to: 0) + 1
+    close @ a when c.hold(or: 5.0)  == 6.0
+
+output c 
+    spawn when a = 5.0
+    eval when a > 10.0 with a + 1.0
+    close @a when b2.hold(or: 6) = 5

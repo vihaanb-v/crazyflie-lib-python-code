@@ -1,0 +1,5 @@
+input a: UInt64
+
+output b := a + 3
+
+trigger b > 3 

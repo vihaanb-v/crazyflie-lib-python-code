@@ -1,0 +1,59 @@
+import math
+
+
+// === Inputs ===
+input x: Float64
+input y: Float64
+input z: Float64
+
+
+input p0_x: Float64
+input p0_y: Float64
+input p0_z: Float64
+input p1_x: Float64
+input p1_y: Float64
+input p1_z: Float64
+
+
+// === Config ===
+constant threshold: Float64 := 0.35   // meters
+
+
+// --- helpers (small, readable) ---
+output dx := p1_x - p0_x
+output dy := p1_y - p0_y
+output dz := p1_z - p0_z
+output len2 := dx*dx + dy*dy + dz*dz
+output seg_valid := len2 > 0.0
+
+
+output vx := x - p0_x
+output vy := y - p0_y
+output vz := z - p0_z
+
+
+output t_raw := if seg_valid then (vx*dx + vy*dy + vz*dz) / len2 else 0.0
+output t := if t_raw < 0.0 then 0.0 else if t_raw > 1.0 then 1.0 else t_raw
+
+
+output c_x := p0_x + t * dx
+output c_y := p0_y + t * dy
+output c_z := p0_z + t * dz
+
+
+// === the only value you care about ===
+output cross_track_drift: Float64 :=
+ sqrt((x - c_x)*(x - c_x) + (y - c_y)*(y - c_y) + (z - c_z)*(z - c_z))
+
+
+// === triggers (your formatting) ===
+// Make warning paced; sample the latest drift with hold.
+output warning: Bool @10Hz := cross_track_drift.hold(or: 0.0) > threshold
+#[warning]
+trigger warning "Warning: Cross-track drift > 0.35 m — correcting toward path!"
+
+
+// Aggregate over 2.5 s: returns Bool, so no `.defaults(...)`
+output violation: Bool @10Hz := warning.aggregate(over: 2.5s, using: forall)
+#[violation]
+trigger violation "Violation: Path deviation sustained for 2.5s — land nano-quadcopter!"

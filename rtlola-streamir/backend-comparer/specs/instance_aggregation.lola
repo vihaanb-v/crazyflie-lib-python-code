@@ -1,0 +1,11 @@
+import math
+
+input a : Int64
+input b : Int64
+
+output c(p)
+  spawn with a
+  eval when abs(a - p) < 5 with c(p).offset(by:-1).defaults(to:0) + 1
+
+output d@a := c.aggregate(over_instances: all, using: sum)
+output e@a := c.aggregate(over_instances: fresh, using: sum)

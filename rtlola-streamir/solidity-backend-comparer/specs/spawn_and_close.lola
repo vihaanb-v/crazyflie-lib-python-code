@@ -1,0 +1,9 @@
+input a : Int64
+input b : Int64
+
+output c
+  spawn when a > 5
+  eval @a with c.last(or: 0) + 1
+  close when a < 10
+output d
+  @true := c.hold(or: 0)

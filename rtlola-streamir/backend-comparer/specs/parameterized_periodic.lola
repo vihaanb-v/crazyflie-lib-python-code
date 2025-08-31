@@ -1,0 +1,19 @@
+input a : Int64
+input b : Int64
+
+output b2
+    spawn when a > 5
+    eval @1Hz with a.hold(or: 8)
+    close when a < 6
+
+output c(p)
+    spawn when a > 10 with a
+    eval @1Hz with c(p).offset(by: -1).defaults(to: 0) + 1
+    close when a < 6
+
+output c_0 @1Hz := c(0).hold(or: 0)
+output c_1 @1Hz := c(1).hold(or: 0)
+output c_2 @1Hz := c(2).hold(or: 0)
+output c_3 @1Hz := c(3).hold(or: 0)
+output c_4 @1Hz := c(4).hold(or: 0)
+output c_5 @1Hz := c(5).hold(or: 0)

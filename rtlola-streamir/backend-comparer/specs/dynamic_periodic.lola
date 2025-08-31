@@ -1,0 +1,16 @@
+input a : Int64
+input b : Int64
+
+output b2 := a + b2.offset(by: -1).defaults(to: 0)
+
+output c
+ spawn when b2 > 5
+ eval @1Hz with true
+ close when b2 > 50
+
+output d @1Hz := b2.hold(or: 0) 
+
+output e 
+    spawn when b2 > 5
+    eval @1Hz with true
+    close when b2 > 50

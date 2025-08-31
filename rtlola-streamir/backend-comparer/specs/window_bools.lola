@@ -1,0 +1,5 @@
+input a : Bool
+input b : Bool
+
+output c@3s := a.aggregate(over: 5s, using: exists)
+output d@3s := a.aggregate(over: 5s, using: forall)
