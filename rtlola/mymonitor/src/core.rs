@@ -2,6 +2,7 @@ use core::fmt::Display;
 use std::fmt::Debug;
 use std::marker::PhantomData;
 use std::ops::Add;
+use core::time::Duration;
 #[derive(Debug, Clone)]
 			pub enum MonitorError {
             InstanceNotFound { stream: &'static str, instance: String },
@@ -595,23 +596,27 @@ impl<AggregationFunction: WindowAggregation, const NUM_BUCKETS: usize, const WAI
     }
 }
 
+// core.rs
+
+#[derive(Debug, Clone, Default)]
 pub struct Event {
-z: Option<f64>,
-y_drift: Option<f64>,
-multi_ranger_x_drift: Option<f64>,
-multi_ranger_y_drift: Option<f64>,
-multi_ranger_z_drift: Option<f64>,
-roll: Option<f64>,
-waypoint_z: Option<f64>,
-z_drift: Option<f64>,
-yaw: Option<f64>,
-x: Option<f64>,
-y: Option<f64>,
-pitch: Option<f64>,
-waypoint_y: Option<f64>,
-x_drift: Option<f64>,
-waypoint_x: Option<f64>,
+    pub(crate) z: Option<f64>,
+    pub(crate) y_drift: Option<f64>,
+    pub(crate) multi_ranger_x_drift: Option<f64>,
+    pub(crate) multi_ranger_y_drift: Option<f64>,
+    pub(crate) multi_ranger_z_drift: Option<f64>,
+    pub(crate) roll: Option<f64>,
+    pub(crate) waypoint_z: Option<f64>,
+    pub(crate) z_drift: Option<f64>,
+    pub(crate) yaw: Option<f64>,
+    pub(crate) x: Option<f64>,
+    pub(crate) y: Option<f64>,
+    pub(crate) pitch: Option<f64>,
+    pub(crate) waypoint_y: Option<f64>,
+    pub(crate) x_drift: Option<f64>,
+    pub(crate) waypoint_x: Option<f64>,
 }
+
 struct InternalEvent {
 x_drift: Option<f64>,
 y_drift: Option<f64>,

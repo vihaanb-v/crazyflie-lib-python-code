@@ -1,5 +1,6 @@
 [workspace]
 members = [
   "rtlola2c",
-  "rtlola-streamir"
+  "rtlola-streamir",
+  "mymonitor"
 ]
