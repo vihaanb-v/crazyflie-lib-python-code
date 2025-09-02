@@ -77,6 +77,20 @@ def display_verdict_triggers_dict(vd: dict):
         if isinstance(msg, str) and msg:
             print(f"[TRIGGER] {msg}")
 
+def _latest(vlist: list[dict], key: str):
+    for vd in reversed(vlist):
+        if key in vd and vd[key] is not None:
+            return vd[key]
+    return None
+
+def _latest_bool(vlist: list[dict], key: str):
+    v = _latest(vlist, key)
+    return v if isinstance(v, bool) else None
+
+def _latest_str(vlist: list[dict], key: str) -> str:
+    v = _latest(vlist, key)
+    return v if isinstance(v, str) else ""
+
 def create_event(
     x_drift=None, y_drift=None, z_drift=None,
     pitch=None, roll=None, yaw=None,
@@ -94,6 +108,7 @@ def create_event(
         x=x, y=y, z=z,
         waypoint_x=waypoint_x, waypoint_y=waypoint_y, waypoint_z=waypoint_z
     ), float(time_val)
+
 
 import logging
 import sys
@@ -135,6 +150,11 @@ multiranger_deck_event = Event()
 logging.basicConfig(level=logging.ERROR)
 
 
+no_progress_2s = threading.Event()
+no_progress_5s = threading.Event()
+reached_waypoint_evt = threading.Event()
+
+
 takeoff_started = threading.Event()
 takeoff_ended = threading.Event()
 
@@ -165,7 +185,8 @@ autocorrect_position_z_neg = threading.Event()
 autocorrect_position_z_pos = threading.Event()
 
 
-corrections_q = Queue()
+start_monitoring = threading.Event()
+
 
 def send_state_to_monitor(x_val, x0, y_val, y0, mx_val, mx0, my_val, my0, mz_val, mz0, timestamp):
     x_drift_val = x_val - x0
@@ -341,7 +362,7 @@ def square_turns_starting_at_corner(scf, velocity):
    print("Touchdown.")
 
 
-def combined_flight(scf, position_lock, shared_position):
+def combined_flight(scf, position_lock, shared_position, waypoint_lock, shared_waypoint, monitoring_bool_lock, shared_monitoring_bool):
     print("Coordinate 1 (Takeoff): (0, 0, 0)")
     print("Coordinate 2 (Hover): (0, 0, 1.5)")
     print("Coordinate 3: (0, 1.2, 1.5)")
@@ -354,14 +375,25 @@ def combined_flight(scf, position_lock, shared_position):
     takeoff_started.set()
 
     with MotionCommander(scf, default_height=DEFAULT_HEIGHT) as mc:
+        def _failsafe_land_if_needed():
+            if no_progress_5s.is_set():
+                print("[FAILSAFE] No progress for 5s. Landing now.")
+                mc.stop()
+                try:
+                    mc.land(velocity=0.2)
+                finally:
+                    takeoff_ended.set()
+                return True
+            return False
+
         position_ready.wait()
-        
         time.sleep(3)
 
         with position_lock:
             mx = shared_position["mx"]
             my = shared_position["my"]
 
+        # Initial auto-centering on X
         if mx > 0.2:
             print("[INIT-AUTO-X] Initial X displacement too large. Correcting to 0.")
             correction_time = abs(mx / 0.2) + 0.7
@@ -369,7 +401,8 @@ def combined_flight(scf, position_lock, shared_position):
             time.sleep(correction_time)
             mc.stop()
             time.sleep(1)
-
+            if _failsafe_land_if_needed():
+                return
         elif mx < -0.2:
             print("[INIT-AUTO-X] Initial X displacement too large. Correcting to 0.")
             correction_time = abs(mx / 0.2) + 0.7
@@ -377,7 +410,10 @@ def combined_flight(scf, position_lock, shared_position):
             time.sleep(correction_time)
             mc.stop()
             time.sleep(1)
+            if _failsafe_land_if_needed():
+                return
 
+        # Initial auto-centering on Y
         if my > 0.2:
             print("[INIT-AUTO-Y] Initial Y displacement too large. Correcting to 0.")
             correction_time = abs(my / 0.2) + 0.7
@@ -385,7 +421,8 @@ def combined_flight(scf, position_lock, shared_position):
             time.sleep(correction_time)
             mc.stop()
             time.sleep(1)
-
+            if _failsafe_land_if_needed():
+                return
         elif my < -0.2:
             print("[INIT-AUTO-Y] Initial Y displacement too large. Correcting to 0.")
             correction_time = abs(my / 0.2) + 0.7
@@ -393,16 +430,32 @@ def combined_flight(scf, position_lock, shared_position):
             time.sleep(correction_time)
             mc.stop()
             time.sleep(1)
-        
-        # SEGMENT 1
+            if _failsafe_land_if_needed():
+                return
+
+        # ---------------- SEGMENT 1 ----------------
+        shared_waypoint["wx"] = 0.0
+        shared_waypoint["wy"] = 1.2
+        shared_waypoint["wz"] = 1.5
+
+        shared_monitoring_bool["no_progress_2s"] = True
+        shared_monitoring_bool["no_progress_5s"] = True
+
+        start_monitoring.set()
+
         mc.start_linear_motion(0.2, 0.0, 0.0)
         autocorrect_position_x_neg.clear()
         autocorrect_position_x_pos.clear()
         autocorrect_position_y_neg.clear()
         autocorrect_position_y_pos.clear()
         while True:
+            if _failsafe_land_if_needed():
+                return
+            
             if autocorrect_position_x_neg.is_set():
                 print("[AUTO-X] X drift trigger fired. Pausing flight.")
+                shared_monitoring_bool["no_progress_2s"] = False
+                shared_monitoring_bool["no_progress_5s"] = False
                 mc.stop()
                 time.sleep(2)
                 with position_lock:
@@ -413,10 +466,14 @@ def combined_flight(scf, position_lock, shared_position):
                 mc.stop()
                 autocorrect_position_x_neg.clear()
                 time.sleep(2)
+                if _failsafe_land_if_needed():
+                    return
                 mc.start_linear_motion(0.2, 0.0, 0.0)
 
             elif autocorrect_position_x_pos.is_set():
                 print("[AUTO-X] X drift trigger fired. Pausing flight.")
+                shared_monitoring_bool["no_progress_2s"] = False
+                shared_monitoring_bool["no_progress_5s"] = False
                 mc.stop()
                 time.sleep(2)
                 with position_lock:
@@ -427,24 +484,31 @@ def combined_flight(scf, position_lock, shared_position):
                 mc.stop()
                 autocorrect_position_x_pos.clear()
                 time.sleep(2)
+                if _failsafe_land_if_needed():
+                    return
                 mc.start_linear_motion(0.2, 0.0, 0.0)
 
             elif autocorrect_position_y_neg.is_set():
                 print("[AUTO-Y] Y drift trigger fired. Pausing flight.")
+                shared_monitoring_bool["no_progress_2s"] = False
+                shared_monitoring_bool["no_progress_5s"] = False
                 mc.stop()
                 time.sleep(2)
-                with position_lock:
-                    dmy = shared_position["dmy"]
+                with position_lock: dmy = shared_position["dmy"]
                 correction_time = abs(dmy / 0.2) + 0.7
                 mc.start_linear_motion(0.2, 0.0, 0.0)
                 time.sleep(correction_time)
                 mc.stop()
                 autocorrect_position_y_neg.clear()
                 time.sleep(2)
+                if _failsafe_land_if_needed():
+                    return
                 mc.start_linear_motion(0.2, 0.0, 0.0)
 
             elif autocorrect_position_y_pos.is_set():
                 print("[AUTO-Y] Y drift trigger fired. Pausing flight.")
+                shared_monitoring_bool["no_progress_2s"] = False
+                shared_monitoring_bool["no_progress_5s"] = False
                 mc.stop()
                 time.sleep(2)
                 with position_lock:
@@ -455,10 +519,11 @@ def combined_flight(scf, position_lock, shared_position):
                 mc.stop()
                 autocorrect_position_y_pos.clear()
                 time.sleep(2)
+                if _failsafe_land_if_needed():
+                    return
                 mc.start_linear_motion(0.2, 0.0, 0.0)
 
-            with position_lock:
-                my = shared_position["my"]
+            with position_lock: my = shared_position["my"]
             if my >= 1.18:
                 mc.stop()
                 time.sleep(3)
@@ -468,14 +533,21 @@ def combined_flight(scf, position_lock, shared_position):
         mx_right_ready.set()
         mc.stop()
 
-        time_temp = time.time()
-        time_end = time_temp + 2
+        shared_monitoring_bool["no_progress_2s"] = False
+        shared_monitoring_bool["no_progress_5s"] = False
+        shared_monitoring_bool["reached_waypoint"] = True
+
+        time_end = time.time() + 2
 
         autocorrect_position_x_neg.clear()
         autocorrect_position_x_pos.clear()
         autocorrect_position_y_neg.clear()
         autocorrect_position_y_pos.clear()
+
         while time.time() < time_end:
+            if _failsafe_land_if_needed():
+                return
+
             if autocorrect_position_x_neg.is_set():
                 time_end += 2.1
                 print("[AUTO-X] X drift trigger fired. Pausing flight.")
@@ -483,7 +555,7 @@ def combined_flight(scf, position_lock, shared_position):
                 time.sleep(2)
                 with position_lock:
                     dmx = shared_position["dmx"]
-                correction_time = abs(dmx / 0.2) + 0.7
+                correction_time = abs(dmx/0.2) + 0.7
                 mc.start_linear_motion(0.0, -0.2, 0.0)
                 time_end += correction_time + 0.1
                 time.sleep(correction_time)
@@ -497,9 +569,8 @@ def combined_flight(scf, position_lock, shared_position):
                 print("[AUTO-X] X drift trigger fired. Pausing flight.")
                 mc.stop()
                 time.sleep(2)
-                with position_lock:
-                    dmx = shared_position["dmx"]
-                correction_time = abs(dmx / 0.2) + 0.7
+                with position_lock: dmx = shared_position["dmx"]
+                correction_time = abs(dmx/0.2) + 0.7
                 mc.start_linear_motion(0.0, 0.2, 0.0)
                 time_end += correction_time + 0.1
                 time.sleep(correction_time)
@@ -515,7 +586,7 @@ def combined_flight(scf, position_lock, shared_position):
                 time.sleep(2)
                 with position_lock:
                     dmy = shared_position["dmy"]
-                correction_time = abs(dmy / 0.2) + 0.7
+                correction_time = abs(dmy/0.2) + 0.7
                 mc.start_linear_motion(0.2, 0.0, 0.0)
                 time_end += correction_time + 0.1
                 time.sleep(correction_time)
@@ -531,7 +602,7 @@ def combined_flight(scf, position_lock, shared_position):
                 time.sleep(2)
                 with position_lock:
                     dmy = shared_position["dmy"]
-                correction_time = abs(dmy / 0.2) + 0.7
+                correction_time = abs(dmy/0.2) + 0.7
                 mc.start_linear_motion(-0.2, 0.0, 0.0)
                 time_end += correction_time + 0.1
                 time.sleep(correction_time)
@@ -542,71 +613,97 @@ def combined_flight(scf, position_lock, shared_position):
 
             time.sleep(0.01)
 
-        # SEGMENT 2
+        # ---------------- SEGMENT 2 ----------------
+        shared_waypoint["wx"] = 1.2
+        shared_waypoint["wy"] = 1.2
+        shared_waypoint["wz"] = 1.5
+
+        shared_monitoring_bool["no_progress_2s"] = True
+        shared_monitoring_bool["no_progress_5s"] = True
+        shared_monitoring_bool["reached_waypoint"] = False
+
         mc.start_linear_motion(0.0, -0.2, 0.0)
         autocorrect_position_x_neg.clear()
         autocorrect_position_x_pos.clear()
         autocorrect_position_y_neg.clear()
         autocorrect_position_y_pos.clear()
         while True:
+            if _failsafe_land_if_needed():
+                return
+
             if autocorrect_position_x_neg.is_set():
                 print("[AUTO-X] X drift trigger fired. Pausing flight.")
+                shared_monitoring_bool["no_progress_2s"] = False
+                shared_monitoring_bool["no_progress_5s"] = False
                 mc.stop()
                 time.sleep(2)
                 with position_lock:
                     dmx = shared_position["dmx"]
-                correction_time = abs(dmx / 0.2) + 0.7
+                correction_time = abs(dmx/0.2) + 0.7
                 mc.start_linear_motion(0.0, -0.2, 0.0)
                 time.sleep(correction_time)
                 mc.stop()
                 autocorrect_position_x_neg.clear()
                 time.sleep(2)
+                if _failsafe_land_if_needed():
+                    return
                 mc.start_linear_motion(0.0, -0.2, 0.0)
 
             elif autocorrect_position_x_pos.is_set():
                 print("[AUTO-X] X drift trigger fired. Pausing flight.")
+                shared_monitoring_bool["no_progress_2s"] = False
+                shared_monitoring_bool["no_progress_5s"] = False
                 mc.stop()
                 time.sleep(2)
                 with position_lock:
                     dmx = shared_position["dmx"]
-                correction_time = abs(dmx / 0.2) + 0.7
+                correction_time = abs(dmx/0.2) + 0.7
                 mc.start_linear_motion(0.0, 0.2, 0.0)
                 time.sleep(correction_time)
                 mc.stop()
                 autocorrect_position_x_pos.clear()
                 time.sleep(2)
+                if _failsafe_land_if_needed():
+                    return
                 mc.start_linear_motion(0.0, -0.2, 0.0)
 
             elif autocorrect_position_y_neg.is_set():
                 print("[AUTO-Y] Y drift trigger fired. Pausing flight.")
+                shared_monitoring_bool["no_progress_2s"] = False
+                shared_monitoring_bool["no_progress_5s"] = False
                 mc.stop()
                 time.sleep(2)
                 with position_lock:
                     dmy = shared_position["dmy"]
-                correction_time = abs(dmy / 0.2) + 0.7
+                correction_time = abs(dmy/0.2) + 0.7
                 mc.start_linear_motion(0.2, 0.0, 0.0)
                 time.sleep(correction_time)
                 mc.stop()
                 autocorrect_position_y_neg.clear()
                 time.sleep(2)
+                if _failsafe_land_if_needed():
+                    return
                 mc.start_linear_motion(0.0, -0.2, 0.0)
 
             elif autocorrect_position_y_pos.is_set():
                 print("[AUTO-Y] Y drift trigger fired. Pausing flight.")
+                shared_monitoring_bool["no_progress_2s"] = False
+                shared_monitoring_bool["no_progress_5s"] = False
                 mc.stop()
                 time.sleep(2)
                 with position_lock:
                     dmy = shared_position["dmy"]
-                correction_time = abs(dmy / 0.2) + 0.7
+                correction_time = abs(dmy/0.2) + 0.7
                 mc.start_linear_motion(-0.2, 0.0, 0.0)
                 time.sleep(correction_time)
                 mc.stop()
                 autocorrect_position_y_pos.clear()
                 time.sleep(2)
+                if _failsafe_land_if_needed():
+                    return
                 mc.start_linear_motion(0.0, -0.2, 0.0)
 
-            with position_lock:
-                mx = shared_position["mx"]
+            with position_lock: mx = shared_position["mx"]
             if mx >= 1.18:
                 mc.stop()
                 time.sleep(3)
@@ -615,9 +712,12 @@ def combined_flight(scf, position_lock, shared_position):
 
         my_back_ready.set()
         mc.stop()
-        
-        time_temp = time.time()
-        time_end = time_temp + 2
+
+        shared_monitoring_bool["no_progress_2s"] = False
+        shared_monitoring_bool["no_progress_5s"] = False
+        shared_monitoring_bool["reached_waypoint"] = True
+
+        time_end = time.time() + 2
 
         autocorrect_position_x_neg.clear()
         autocorrect_position_x_pos.clear()
@@ -625,6 +725,9 @@ def combined_flight(scf, position_lock, shared_position):
         autocorrect_position_y_pos.clear()
 
         while time.time() < time_end:
+            if _failsafe_land_if_needed():
+                return
+
             if autocorrect_position_x_neg.is_set():
                 time_end += 2.1
                 print("[AUTO-X] X drift trigger fired. Pausing flight.")
@@ -632,7 +735,7 @@ def combined_flight(scf, position_lock, shared_position):
                 time.sleep(2)
                 with position_lock:
                     dmx = shared_position["dmx"]
-                correction_time = abs(dmx / 0.2) + 0.7
+                correction_time = abs(dmx/0.2) + 0.7
                 mc.start_linear_motion(0.0, -0.2, 0.0)
                 time_end += correction_time + 0.1
                 time.sleep(correction_time)
@@ -648,7 +751,7 @@ def combined_flight(scf, position_lock, shared_position):
                 time.sleep(2)
                 with position_lock:
                     dmx = shared_position["dmx"]
-                correction_time = abs(dmx / 0.2) + 0.7
+                correction_time = abs(dmx/0.2) + 0.7
                 mc.start_linear_motion(0.0, 0.2, 0.0)
                 time_end += correction_time + 0.1
                 time.sleep(correction_time)
@@ -664,7 +767,7 @@ def combined_flight(scf, position_lock, shared_position):
                 time.sleep(2)
                 with position_lock:
                     dmy = shared_position["dmy"]
-                correction_time = abs(dmy / 0.2) + 0.7
+                correction_time = abs(dmy/0.2) + 0.7
                 mc.start_linear_motion(0.2, 0.0, 0.0)
                 time_end += correction_time + 0.1
                 time.sleep(correction_time)
@@ -680,7 +783,7 @@ def combined_flight(scf, position_lock, shared_position):
                 time.sleep(2)
                 with position_lock:
                     dmy = shared_position["dmy"]
-                correction_time = abs(dmy / 0.2) + 0.7
+                correction_time = abs(dmy/0.2) + 0.7
                 mc.start_linear_motion(-0.2, 0.0, 0.0)
                 time_end += correction_time + 0.1
                 time.sleep(correction_time)
@@ -691,71 +794,96 @@ def combined_flight(scf, position_lock, shared_position):
 
             time.sleep(0.01)
 
-        # SEGMENT 3
+        # ---------------- SEGMENT 3 ----------------
+        shared_waypoint["wx"] = 1.2
+        shared_waypoint["wy"] = 0.0
+        shared_waypoint["wz"] = 1.5
+
+        shared_monitoring_bool["no_progress_2s"] = True
+        shared_monitoring_bool["no_progress_5s"] = True
+        shared_monitoring_bool["reached_waypoint"] = False
+
         mc.start_linear_motion(-0.2, 0.0, 0.0)
         autocorrect_position_x_neg.clear()
         autocorrect_position_x_pos.clear()
         autocorrect_position_y_neg.clear()
         autocorrect_position_y_pos.clear()
         while True:
+            if _failsafe_land_if_needed():
+                return
+
             if autocorrect_position_x_neg.is_set():
                 print("[AUTO-X] X drift trigger fired. Pausing flight.")
+                shared_monitoring_bool["no_progress_2s"] = False
+                shared_monitoring_bool["no_progress_5s"] = False
                 mc.stop()
                 time.sleep(2)
                 with position_lock:
                     dmx = shared_position["dmx"]
-                correction_time = abs(dmx / 0.2) + 0.7
+                correction_time = abs(dmx/0.2) + 0.7
                 mc.start_linear_motion(0.0, -0.2, 0.0)
                 time.sleep(correction_time)
                 mc.stop()
                 autocorrect_position_x_neg.clear()
                 time.sleep(2)
+                if _failsafe_land_if_needed():
+                    return
                 mc.start_linear_motion(-0.2, 0.0, 0.0)
 
             elif autocorrect_position_x_pos.is_set():
                 print("[AUTO-X] X drift trigger fired. Pausing flight.")
+                shared_monitoring_bool["no_progress_2s"] = False
+                shared_monitoring_bool["no_progress_5s"] = False
                 mc.stop()
                 time.sleep(2)
                 with position_lock:
                     dmx = shared_position["dmx"]
-                correction_time = abs(dmx / 0.2) + 0.7
+                correction_time = abs(dmx/0.2) + 0.7
                 mc.start_linear_motion(0.0, 0.2, 0.0)
                 time.sleep(correction_time)
                 mc.stop()
                 autocorrect_position_x_pos.clear()
                 time.sleep(2)
+                if _failsafe_land_if_needed():
+                    return
                 mc.start_linear_motion(-0.2, 0.0, 0.0)
 
             elif autocorrect_position_y_neg.is_set():
                 print("[AUTO-Y] Y drift trigger fired. Pausing flight.")
+                shared_monitoring_bool["no_progress_2s"] = False
+                shared_monitoring_bool["no_progress_5s"] = False
                 mc.stop()
                 time.sleep(2)
                 with position_lock:
                     dmy = shared_position["dmy"]
-                correction_time = abs(dmy / 0.2) + 0.7
+                correction_time = abs(dmy/0.2) + 0.7
                 mc.start_linear_motion(0.2, 0.0, 0.0)
                 time.sleep(correction_time)
                 mc.stop()
                 autocorrect_position_y_neg.clear()
                 time.sleep(2)
+                if _failsafe_land_if_needed():
+                    return
                 mc.start_linear_motion(-0.2, 0.0, 0.0)
 
             elif autocorrect_position_y_pos.is_set():
                 print("[AUTO-Y] Y drift trigger fired. Pausing flight.")
+                shared_monitoring_bool["no_progress_2s"] = False
+                shared_monitoring_bool["no_progress_5s"] = False
                 mc.stop()
                 time.sleep(2)
-                with position_lock:
-                    dmy = shared_position["dmy"]
-                correction_time = abs(dmy / 0.2) + 0.7
+                with position_lock: dmy = shared_position["dmy"]
+                correction_time = abs(dmy/0.2) + 0.7
                 mc.start_linear_motion(-0.2, 0.0, 0.0)
                 time.sleep(correction_time)
                 mc.stop()
                 autocorrect_position_y_pos.clear()
                 time.sleep(2)
+                if _failsafe_land_if_needed():
+                    return
                 mc.start_linear_motion(-0.2, 0.0, 0.0)
 
-            with position_lock:
-                my = shared_position["my"]
+            with position_lock: my = shared_position["my"]
             if my <= 0.02:
                 mc.stop()
                 time.sleep(3)
@@ -764,16 +892,21 @@ def combined_flight(scf, position_lock, shared_position):
 
         mx_left_ready.set()
         mc.stop()
-        
-        time_temp = time.time()
-        time_end = time_temp + 2
+
+        shared_monitoring_bool["no_progress_2s"] = False
+        shared_monitoring_bool["no_progress_5s"] = False
+        shared_monitoring_bool["reached_waypoint"] = True
+
+        time_end = time.time() + 2
 
         autocorrect_position_x_neg.clear()
         autocorrect_position_x_pos.clear()
         autocorrect_position_y_neg.clear()
         autocorrect_position_y_pos.clear()
-
         while time.time() < time_end:
+            if _failsafe_land_if_needed():
+                return
+
             if autocorrect_position_x_neg.is_set():
                 time_end += 2.1
                 print("[AUTO-X] X drift trigger fired. Pausing flight.")
@@ -781,7 +914,7 @@ def combined_flight(scf, position_lock, shared_position):
                 time.sleep(2)
                 with position_lock:
                     dmx = shared_position["dmx"]
-                correction_time = abs(dmx / 0.2) + 0.7
+                correction_time = abs(dmx/0.2) + 0.7
                 mc.start_linear_motion(0.0, -0.2, 0.0)
                 time_end += correction_time + 0.1
                 time.sleep(correction_time)
@@ -797,7 +930,7 @@ def combined_flight(scf, position_lock, shared_position):
                 time.sleep(2)
                 with position_lock:
                     dmx = shared_position["dmx"]
-                correction_time = abs(dmx / 0.2) + 0.7
+                correction_time = abs(dmx/0.2) + 0.7
                 mc.start_linear_motion(0.0, 0.2, 0.0)
                 time_end += correction_time + 0.1
                 time.sleep(correction_time)
@@ -813,7 +946,7 @@ def combined_flight(scf, position_lock, shared_position):
                 time.sleep(2)
                 with position_lock:
                     dmy = shared_position["dmy"]
-                correction_time = abs(dmy / 0.2) + 0.7
+                correction_time = abs(dmy/0.2) + 0.7
                 mc.start_linear_motion(0.2, 0.0, 0.0)
                 time_end += correction_time + 0.1
                 time.sleep(correction_time)
@@ -829,7 +962,7 @@ def combined_flight(scf, position_lock, shared_position):
                 time.sleep(2)
                 with position_lock:
                     dmy = shared_position["dmy"]
-                correction_time = abs(dmy / 0.2) + 0.7
+                correction_time = abs(dmy/0.2) + 0.7
                 mc.start_linear_motion(-0.2, 0.0, 0.0)
                 time_end += correction_time + 0.1
                 time.sleep(correction_time)
@@ -840,67 +973,93 @@ def combined_flight(scf, position_lock, shared_position):
 
             time.sleep(0.01)
 
-        # SEGMENT 4
+        # ---------------- SEGMENT 4 ----------------
+        shared_waypoint["wx"] = 0.0
+        shared_waypoint["wy"] = 0.0
+        shared_waypoint["wz"] = 1.5
+
+        shared_monitoring_bool["no_progress_2s"] = True
+        shared_monitoring_bool["no_progress_5s"] = True
+        shared_monitoring_bool["reached_waypoint"] = False
+
         mc.start_linear_motion(0.0, 0.2, 0.0)
         autocorrect_position_x_neg.clear()
         autocorrect_position_x_pos.clear()
         autocorrect_position_y_neg.clear()
         autocorrect_position_y_pos.clear()
         while True:
+            if _failsafe_land_if_needed():
+                return
+
             if autocorrect_position_x_neg.is_set():
                 print("[AUTO-X] X drift trigger fired. Pausing flight.")
+                shared_monitoring_bool["no_progress_2s"] = False
+                shared_monitoring_bool["no_progress_5s"] = False
                 mc.stop()
                 time.sleep(2)
                 with position_lock:
                     dmx = shared_position["dmx"]
-                correction_time = abs(dmx / 0.2) + 0.7
+                correction_time = abs(dmx/0.2) + 0.7
                 mc.start_linear_motion(0.0, -0.2, 0.0)
                 time.sleep(correction_time)
                 mc.stop()
                 autocorrect_position_x_neg.clear()
                 time.sleep(2)
+                if _failsafe_land_if_needed():
+                    return
                 mc.start_linear_motion(0.0, 0.2, 0.0)
 
             elif autocorrect_position_x_pos.is_set():
                 print("[AUTO-X] X drift trigger fired. Pausing flight.")
-                mc.stop()
-                time.sleep(2)
+                shared_monitoring_bool["no_progress_2s"] = False
+                shared_monitoring_bool["no_progress_5s"] = False
+                mc.stop(); time.sleep(2)
                 with position_lock:
                     dmx = shared_position["dmx"]
-                correction_time = abs(dmx / 0.2) + 0.7
+                correction_time = abs(dmx/0.2) + 0.7
                 mc.start_linear_motion(0.0, 0.2, 0.0)
                 time.sleep(correction_time)
                 mc.stop()
                 autocorrect_position_x_pos.clear()
                 time.sleep(2)
+                if _failsafe_land_if_needed():
+                    return
                 mc.start_linear_motion(0.0, 0.2, 0.0)
 
             elif autocorrect_position_y_neg.is_set():
                 print("[AUTO-Y] Y drift trigger fired. Pausing flight.")
+                shared_monitoring_bool["no_progress_2s"] = False
+                shared_monitoring_bool["no_progress_5s"] = False
                 mc.stop()
                 time.sleep(2)
                 with position_lock:
                     dmy = shared_position["dmy"]
-                correction_time = abs(dmy / 0.2) + 0.7
+                correction_time = abs(dmy/0.2) + 0.7
                 mc.start_linear_motion(0.2, 0.0, 0.0)
                 time.sleep(correction_time)
                 mc.stop()
                 autocorrect_position_y_neg.clear()
                 time.sleep(2)
+                if _failsafe_land_if_needed():
+                    return
                 mc.start_linear_motion(0.0, 0.2, 0.0)
 
             elif autocorrect_position_y_pos.is_set():
                 print("[AUTO-Y] Y drift trigger fired. Pausing flight.")
+                shared_monitoring_bool["no_progress_2s"] = False
+                shared_monitoring_bool["no_progress_5s"] = False
                 mc.stop()
                 time.sleep(2)
                 with position_lock:
                     dmy = shared_position["dmy"]
-                correction_time = abs(dmy / 0.2) + 0.7
+                correction_time = abs(dmy/0.2) + 0.7
                 mc.start_linear_motion(-0.2, 0.0, 0.0)
                 time.sleep(correction_time)
                 mc.stop()
                 autocorrect_position_y_pos.clear()
                 time.sleep(2)
+                if _failsafe_land_if_needed():
+                    return
                 mc.start_linear_motion(0.0, 0.2, 0.0)
 
             with position_lock:
@@ -912,6 +1071,12 @@ def combined_flight(scf, position_lock, shared_position):
             time.sleep(0.01)
 
         takeoff_ended.set()
+
+        shared_monitoring_bool["no_progress_2s"] = False
+        shared_monitoring_bool["no_progress_5s"] = False
+        shared_monitoring_bool["reached_waypoint"] = True
+
+        mc.stop()
 
     print("Touchdown.")
 
@@ -946,27 +1111,32 @@ def write_state_csv_log(full_csv_path_log, log_dict):
 
 
 def write_ranger_csv_log(full_csv_path_log, log_dict):
-   headers = [
-       "timestamp", "mx", "my", "mz",
-       "multi_ranger_x_drift", "multi_ranger_y_drift", "multi_ranger_z_drift",
-       "multi_ranger_x_drift_pos_exceeded", "multi_ranger_x_drift_pos_trigger",
-       "multi_ranger_x_drift_neg_exceeded", "multi_ranger_x_drift_neg_trigger",
-       "multi_ranger_y_drift_pos_exceeded", "multi_ranger_y_drift_pos_trigger",
-       "multi_ranger_y_drift_neg_exceeded", "multi_ranger_y_drift_neg_trigger",
-       "multi_ranger_z_drift_pos_exceeded", "multi_ranger_z_drift_pos_trigger",
-       "multi_ranger_z_drift_neg_exceeded", "multi_ranger_z_drift_neg_trigger",
-   ]
+    headers = [
+        "timestamp", "mx", "my", "mz",
+        "multi_ranger_x_drift", "multi_ranger_y_drift", "multi_ranger_z_drift",
+        "multi_ranger_x_drift_pos_exceeded", "multi_ranger_x_drift_pos_trigger",
+        "multi_ranger_x_drift_neg_exceeded", "multi_ranger_x_drift_neg_trigger",
+        "multi_ranger_y_drift_pos_exceeded", "multi_ranger_y_drift_pos_trigger",
+        "multi_ranger_y_drift_neg_exceeded", "multi_ranger_y_drift_neg_trigger",
+        "multi_ranger_z_drift_pos_exceeded", "multi_ranger_z_drift_pos_trigger",
+        "multi_ranger_z_drift_neg_exceeded", "multi_ranger_z_drift_neg_trigger",
+        # raw ranges
+        "right", "front", "up",
+        # progression / periodic logic
+        "progressing_2s", "min_closure_2s",
+        "progressing_5s", "min_closure_5s",
+        "reached_waypoint",
+        "trigger_15", "trigger_16", "trigger_17",
+    ]
 
+    with open(full_csv_path_log, 'w', newline='') as f:
+        writer = csv.writer(f)
+        writer.writerow(headers)
+        for ts in sorted(log_dict.keys()):
+            row = [log_dict[ts].get(col, "") for col in headers]
+            writer.writerow(row)
 
-   with open(full_csv_path_log, 'w', newline='') as f:
-       writer = csv.writer(f)
-       writer.writerow(headers)
-       for ts in sorted(log_dict.keys()):
-           row = [log_dict[ts].get(col, "") for col in headers]
-           writer.writerow(row)
-
-
-   print(f"[Multi-Ranger CSV] Saved to: {full_csv_path_log}")
+    print(f"[Multi-Ranger CSV] Saved to: {full_csv_path_log}")
 
 
 def graph_state_estimate_drift(project_directory_plot, logging_rows, run_id):
@@ -1408,7 +1578,7 @@ def compute_drift_from_path(pos, waypoints):
 
    return best_drift
 
-
+'''
 def drone_logging_position_state_estimate(scf, log_state_estimate, log_dict_state, waypoints):
     takeoff_started.wait()
 
@@ -1444,12 +1614,12 @@ def drone_logging_position_state_estimate(scf, log_state_estimate, log_dict_stat
             dyaw = yaw - yaw0
 
             # Build event for mymonitor + run it
-            event_dict, t_secs = create_event(
+            event, t_secs = create_event(
                 x_drift=dx, y_drift=dy, z_drift=dz,
                 roll=droll, pitch=dpitch, yaw=dyaw,
                 time_val=timestamp / 1000.0
             )
-            verdicts = run_monitor(event_dict, t_secs)
+            verdicts = run_monitor(event, t_secs)
 
             # choose the *last* verdict (usually aligned with this event)
             vd = verdicts[-1] if verdicts else {}
@@ -1500,9 +1670,13 @@ def drone_logging_position_state_estimate(scf, log_state_estimate, log_dict_stat
             #           "trigger_12","trigger_13","trigger_14"):
             #     if get_trigger(k):
             #         print("[TRIGGER]", get_trigger(k))
+'''
 
-
-def drone_logging_position_multi_ranger(scf, log_multi_ranger, log_dict_ranger, waypoints, position_lock, shared_position):
+def drone_logging_position_multi_ranger(
+    scf, log_multi_ranger, log_dict_ranger, waypoints,
+    position_lock, shared_position, waypoint_lock, shared_waypoint,
+    monitoring_bool_lock, shared_monitoring_bool
+):
     takeoff_started.wait()
 
     # Offset if using square-from-corner flight
@@ -1510,12 +1684,17 @@ def drone_logging_position_multi_ranger(scf, log_multi_ranger, log_dict_ranger, 
     RIGHT_BOUND = 2.19 + offset
     FRONT_BOUND = 2.57 + offset
     LEFT_BOUND  = 2.19 - offset
-    BACK_BOUND  = 2.57 - offset 
+    BACK_BOUND  = 2.57 - offset
     TOP_BOUND   = 3.24
 
     x_tolerance = 2.25
     y_tolerance = 2.25
     z_tolerance = 2.25
+
+    # --- Arming/Disarming state ---
+    monitor_armed = False         # true only while traversing a leg
+    t0_ms = None                  # spec time origin for the current leg
+    last_waypoint = None          # to detect waypoint changes
 
     with SyncLogger(scf, log_multi_ranger) as logger:
         time.sleep(2)
@@ -1574,15 +1753,94 @@ def drone_logging_position_multi_ranger(scf, log_multi_ranger, log_dict_ranger, 
                 if not position_ready.is_set():
                     position_ready.set()
 
-            # --- mymonitor call ---
-            event_dict, t_secs = create_event(
-                multi_ranger_x_drift=dmx,
-                multi_ranger_y_drift=dmy,
-                multi_ranger_z_drift=dmz,
-                time_val=timestamp / 1000.0
-            )
-            verdicts = run_monitor(event_dict, t_secs)
-            vd = verdicts[-1] if verdicts else {}
+            with waypoint_lock:
+                wx = shared_waypoint["wx"]
+                wy = shared_waypoint["wy"]
+                wz = shared_waypoint["wz"]
+
+            with monitoring_bool_lock:
+                enable_np_2s = shared_monitoring_bool["no_progress_2s"]
+                enable_np_5s = shared_monitoring_bool["no_progress_5s"]
+                reached_wp   = shared_monitoring_bool["reached_waypoint"]
+
+            # --- Detect waypoint change (new leg target) ---
+            wp_tuple = (wx, wy, wz)
+            waypoint_changed = (last_waypoint is None) or (wp_tuple != last_waypoint)
+
+            # --- Disarm while at waypoint: halt spec analysis & clear failsafe flags ---
+            if reached_wp:
+                if monitor_armed:
+                    print("[MONITOR] Reached waypoint -> disarming spec analysis.")
+                monitor_armed = False
+                # keep failsafe flags idle during dwell
+                if no_progress_2s.is_set(): no_progress_2s.clear()
+                if no_progress_5s.is_set(): no_progress_5s.clear()
+
+            # --- Arm only on leg start: need start_monitoring signal AND new waypoint ---
+            if (not monitor_armed) and start_monitoring.is_set() and waypoint_changed and (not reached_wp):
+                print("[MONITOR] New leg detected -> arming spec, resetting monitor/time.")
+                global _MON
+                _MON = mymonitor.PyMonitor()   # reset all RTLola windows/state
+                t0_ms = timestamp              # start spec time at 0 now
+                monitor_armed = True
+                reached_waypoint_evt.clear()
+                last_waypoint = wp_tuple       # remember which leg we’re on
+                # ensure clean failsafe flags at arm
+                if no_progress_2s.is_set(): no_progress_2s.clear()
+                if no_progress_5s.is_set(): no_progress_5s.clear()
+
+            # --- Call RTLola only when armed (i.e., traversing a leg) ---
+            verdicts = []
+            vd = {}
+            prog2 = prog5 = min2 = min5 = reached = None
+            tr15 = tr16 = tr17 = ""
+
+            if monitor_armed:
+                event, t_secs = create_event(
+                    x=mx, y=my, z=mz,
+                    waypoint_x=wx, waypoint_y=wy, waypoint_z=wz,
+                    multi_ranger_x_drift=dmx, multi_ranger_y_drift=dmy, multi_ranger_z_drift=dmz,
+                    time_val=(timestamp - t0_ms) / 1000.0
+                )
+                verdicts = run_monitor(event, t_secs)
+                vd = verdicts[-1] if verdicts else {}
+
+                # Periodic/progression fields from ANY verdict in this cycle
+                prog2   = _latest_bool(verdicts, "progressing_2s")
+                prog5   = _latest_bool(verdicts, "progressing_5s")
+                min2    = _latest(verdicts, "min_closure_2s")
+                min5    = _latest(verdicts, "min_closure_5s") 
+                reached = _latest_bool(verdicts, "reached_waypoint")
+
+                tr15 = _latest_str(verdicts, "trigger_15")
+                tr16 = _latest_str(verdicts, "trigger_16")
+                tr17 = _latest_str(verdicts, "trigger_17")
+                for tmsg in (tr15, tr16, tr17):
+                    if tmsg:
+                        print("[TRIGGER]", tmsg)
+
+                # Set/clear events for flight control — ONLY when armed
+                if (enable_np_2s is True) and (reached_wp is False):
+                    if prog2 is False:
+                        no_progress_2s.set()
+                    elif prog2 is True:
+                        no_progress_2s.clear()
+
+                if (enable_np_5s is True) and (reached_wp is False):
+                    if prog5 is False:
+                        no_progress_5s.set()
+                    elif prog5 is True:
+                        no_progress_5s.clear()
+
+                if reached_wp is True:
+                    # Flight thread should also set shared_monitoring_bool["reached_waypoint"]=True
+                    reached_waypoint_evt.set()
+                    if no_progress_2s.is_set(): no_progress_2s.clear()
+                    if no_progress_5s.is_set(): no_progress_5s.clear()
+            else:
+                # Disarmed: keep failsafe flags idle
+                if no_progress_2s.is_set(): no_progress_2s.clear()
+                if no_progress_5s.is_set(): no_progress_5s.clear()
 
             def get_val_bool(name) -> int:
                 v = vd.get(name)
@@ -1592,7 +1850,8 @@ def drone_logging_position_multi_ranger(scf, log_multi_ranger, log_dict_ranger, 
                 v = vd.get(name)
                 return v if isinstance(v, str) else ""
 
-            log_dict_ranger[timestamp] = {
+            # Build one log row (progression fields blank when disarmed)
+            row = {
                 "timestamp": timestamp,
                 "mx": mx, "my": my, "mz": mz,
                 "multi_ranger_x_drift": dmx,
@@ -1615,53 +1874,54 @@ def drone_logging_position_multi_ranger(scf, log_multi_ranger, log_dict_ranger, 
                 "multi_ranger_z_drift_neg_trigger":  get_trigger("trigger_11"),
 
                 "right": right, "front": front, "up": up,
+
+                # progression columns only filled when armed
+                "progressing_2s":  (int(prog2) if isinstance(prog2, bool) else ""),
+                "min_closure_2s":  (float(min2) if isinstance(min2, (int, float)) else ""),
+                "progressing_5s":  (int(prog5) if isinstance(prog5, bool) else ""),
+                "min_closure_5s":  (float(min5) if isinstance(min5, (int, float)) else ""),
+                "reached_waypoint": (int(reached) if isinstance(reached, bool) else ""),
+                "trigger_15": tr15, "trigger_16": tr16, "trigger_17": tr17,
             }
+            log_dict_ranger[timestamp] = row
 
             print(f"[{timestamp}] MultiRanger Pos: ({mx:.2f}, {my:.2f}, {mz:.2f}) | "
                   f"Drift: (dmx = {dmx:.2f}, dmy = {dmy:.2f}, dmz = {dmz:.2f})")
 
-            # Optional trigger printing
-            for k in ("trigger_6","trigger_7","trigger_8","trigger_9","trigger_10","trigger_11"):
-                tmsg = get_trigger(k)
-                if tmsg:
-                    print("[TRIGGER]", tmsg)
+            # Optional trigger printing (meaningful only when armed)
+            if monitor_armed:
+                for k in ("trigger_6","trigger_7","trigger_8","trigger_9","trigger_10","trigger_11"):
+                    tmsg = get_trigger(k)
+                    if tmsg:
+                        print("[TRIGGER]", tmsg)
 
-            # Autocorrect flags, driven by the *boolean* fields in the verdict
-            if vd.get("multi_ranger_x_drift_neg_exceeded") and not autocorrect_position_x_neg.is_set():
-                autocorrect_position_x_neg.set()
-                with position_lock:
-                    shared_position["mx"] = mx
+            # Autocorrect flags — only act while armed (traversal)
+            if monitor_armed:
+                if vd.get("multi_ranger_x_drift_neg_exceeded") and not autocorrect_position_x_neg.is_set():
+                    autocorrect_position_x_neg.set()
+                    with position_lock: shared_position["mx"] = mx
+                if vd.get("multi_ranger_x_drift_pos_exceeded") and not autocorrect_position_x_pos.is_set():
+                    autocorrect_position_x_pos.set()
+                    with position_lock: shared_position["mx"] = mx
+                if vd.get("multi_ranger_y_drift_neg_exceeded") and not autocorrect_position_y_neg.is_set():
+                    autocorrect_position_y_neg.set()
+                    with position_lock: shared_position["my"] = my
+                if vd.get("multi_ranger_y_drift_pos_exceeded") and not autocorrect_position_y_pos.is_set():
+                    autocorrect_position_y_pos.set()
+                    with position_lock: shared_position["my"] = my
+                if vd.get("multi_ranger_z_drift_neg_exceeded") and not autocorrect_position_z_neg.is_set():
+                    autocorrect_position_z_neg.set()
+                    with position_lock: shared_position["mz"] = mz
+                if vd.get("multi_ranger_z_drift_pos_exceeded") and not autocorrect_position_z_pos.is_set():
+                    autocorrect_position_z_pos.set()
+                    with position_lock: shared_position["mz"] = mz
 
-            if vd.get("multi_ranger_x_drift_pos_exceeded") and not autocorrect_position_x_pos.is_set():
-                autocorrect_position_x_pos.set()
-                with position_lock:
-                    shared_position["mx"] = mx
-
-            if vd.get("multi_ranger_y_drift_neg_exceeded") and not autocorrect_position_y_neg.is_set():
-                autocorrect_position_y_neg.set()
-                with position_lock:
-                    shared_position["my"] = my
-
-            if vd.get("multi_ranger_y_drift_pos_exceeded") and not autocorrect_position_y_pos.is_set():
-                autocorrect_position_y_pos.set()
-                with position_lock:
-                    shared_position["my"] = my
-
-            if vd.get("multi_ranger_z_drift_neg_exceeded") and not autocorrect_position_z_neg.is_set():
-                autocorrect_position_z_neg.set()
-                with position_lock:
-                    shared_position["mz"] = mz
-
-            if vd.get("multi_ranger_z_drift_pos_exceeded") and not autocorrect_position_z_pos.is_set():
-                autocorrect_position_z_pos.set()
-                with position_lock:
-                    shared_position["mz"] = mz
 
 if __name__ == '__main__':
    cflib.crtp.init_drivers()
 
 
-   run_id = "run14"
+   run_id = "run3"
 
 
    log_dict_state = {}
@@ -1717,12 +1977,18 @@ if __name__ == '__main__':
        shared_position = {"mx": 0.0, "my": 0.0, "mz": 0.0}
        position_lock = Lock()
 
+       shared_waypoint = {"wx": 0.0, "wy": 0.0, "wz": 0.0}
+       waypoint_lock = Lock()
+
+       shared_monitoring_bool = {"no_progress_2s": False, "no_progress_5s": False, "reached_waypoint": False}
+       monitoring_bool_lock = Lock()
+
 
        def flight_wrapper():
            #ideal_coords_holder["coords"] = waypoint_flight(scf, False)
            #square_turns_starting_at_center(scf, 0.3)
            #square_turns_starting_at_corner(scf, 0.8)
-           combined_flight(scf, position_lock, shared_position)
+           combined_flight(scf, position_lock, shared_position, waypoint_lock, shared_waypoint, monitoring_bool_lock, shared_monitoring_bool)
 
 
        flight_thread = threading.Thread(target=flight_wrapper)
@@ -1792,45 +2058,47 @@ if __name__ == '__main__':
        # '''
 
 
+       '''
        state_estimate_thread = threading.Thread(
            target=drone_logging_position_state_estimate,
            args=(scf, log_state_estimate, log_dict_state, ideal_coords_state)
        )
+       '''
 
 
        multi_ranger_thread = threading.Thread(
            target=drone_logging_position_multi_ranger,
-           args=(scf, log_multi_ranger, log_dict_ranger, ideal_coords_ranger, position_lock, shared_position)
+           args=(scf, log_multi_ranger, log_dict_ranger, ideal_coords_ranger, position_lock, shared_position, waypoint_lock, shared_waypoint, monitoring_bool_lock, shared_monitoring_bool)
        )
 
 
        multi_ranger_thread.start()
        flight_thread.start()
-       state_estimate_thread.start()
+       #state_estimate_thread.start()
 
 
        multi_ranger_thread.join()
        flight_thread.join()
-       state_estimate_thread.join()
+       #state_estimate_thread.join()
 
 
        state_rows = list(log_dict_state.values())
        ranger_rows = list(log_dict_ranger.values())
 
 
-       write_state_csv_log(path_state_csv, log_dict_state)
+       #write_state_csv_log(path_state_csv, log_dict_state)
        write_ranger_csv_log(path_ranger_csv, log_dict_ranger)
 
 
-       graph_state_estimate_drift(project_dir_plot, state_rows, run_id)
+       #graph_state_estimate_drift(project_dir_plot, state_rows, run_id)
        graph_multiranger_drift(project_dir_plot, ranger_rows, run_id)
 
 
-       graph_3d_state_estimate_vs_ideal(project_dir_plot, state_rows, ideal_coords_state, run_id)
+       #graph_3d_state_estimate_vs_ideal(project_dir_plot, state_rows, ideal_coords_state, run_id)
        graph_3d_multiranger_vs_ideal(project_dir_plot, ranger_rows, ideal_coords_ranger, run_id)
 
 
-       plot_state_estimate_xyz_vs_time(state_rows, run_id, os.path.join(project_dir_plot, f"{run_id}_state_xyz_vs_time.png"))
+       #plot_state_estimate_xyz_vs_time(state_rows, run_id, os.path.join(project_dir_plot, f"{run_id}_state_xyz_vs_time.png"))
        plot_multiranger_xyz_vs_time(ranger_rows, run_id, os.path.join(project_dir_plot, f"{run_id}_multi_ranger_xyz_vs_time.png"))
 
 
