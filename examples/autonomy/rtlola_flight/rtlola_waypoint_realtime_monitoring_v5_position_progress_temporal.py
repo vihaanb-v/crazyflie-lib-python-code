@@ -434,28 +434,48 @@ def combined_flight(scf, position_lock, shared_position, waypoint_lock, shared_w
                 return
 
         # ---------------- SEGMENT 1 ----------------
-        shared_waypoint["wx"] = 0.0
-        shared_waypoint["wy"] = 1.2
-        shared_waypoint["wz"] = 1.5
+        print("Beginning segment 1 traversal.")
 
-        shared_monitoring_bool["no_progress_2s"] = True
-        shared_monitoring_bool["no_progress_5s"] = True
+        if no_progress_2s.is_set():
+            np2 = "SET"
+        else:
+            np2 = "CLEAR"
+
+        if no_progress_5s.is_set():
+            np5 = "SET"
+        else:
+            np5 = "CLEAR"
+
+        print("2 Second Check: {}, 5 Second Check: {}".format(np2, np5))
+        
+        mc.start_linear_motion(0.2, 0.0, 0.0)
+
+        with waypoint_lock:
+            shared_waypoint["wx"] = 0.0
+            shared_waypoint["wy"] = 1.2
+            shared_waypoint["wz"] = 1.5
+
+        with monitoring_bool_lock:
+            shared_monitoring_bool["reached_waypoint"] = False
+            shared_monitoring_bool["no_progress_2s"] = True
+            shared_monitoring_bool["no_progress_5s"] = True
 
         start_monitoring.set()
 
-        mc.start_linear_motion(0.2, 0.0, 0.0)
         autocorrect_position_x_neg.clear()
         autocorrect_position_x_pos.clear()
         autocorrect_position_y_neg.clear()
         autocorrect_position_y_pos.clear()
+
         while True:
             if _failsafe_land_if_needed():
                 return
             
             if autocorrect_position_x_neg.is_set():
                 print("[AUTO-X] X drift trigger fired. Pausing flight.")
-                shared_monitoring_bool["no_progress_2s"] = False
-                shared_monitoring_bool["no_progress_5s"] = False
+                with monitoring_bool_lock:
+                    shared_monitoring_bool["no_progress_2s"] = False
+                    shared_monitoring_bool["no_progress_5s"] = False
                 mc.stop()
                 time.sleep(2)
                 with position_lock:
@@ -469,11 +489,15 @@ def combined_flight(scf, position_lock, shared_position, waypoint_lock, shared_w
                 if _failsafe_land_if_needed():
                     return
                 mc.start_linear_motion(0.2, 0.0, 0.0)
+                with monitoring_bool_lock:
+                    shared_monitoring_bool["no_progress_2s"] = True
+                    shared_monitoring_bool["no_progress_5s"] = True
 
             elif autocorrect_position_x_pos.is_set():
                 print("[AUTO-X] X drift trigger fired. Pausing flight.")
-                shared_monitoring_bool["no_progress_2s"] = False
-                shared_monitoring_bool["no_progress_5s"] = False
+                with monitoring_bool_lock:
+                    shared_monitoring_bool["no_progress_2s"] = False
+                    shared_monitoring_bool["no_progress_5s"] = False
                 mc.stop()
                 time.sleep(2)
                 with position_lock:
@@ -487,11 +511,15 @@ def combined_flight(scf, position_lock, shared_position, waypoint_lock, shared_w
                 if _failsafe_land_if_needed():
                     return
                 mc.start_linear_motion(0.2, 0.0, 0.0)
+                with monitoring_bool_lock:
+                    shared_monitoring_bool["no_progress_2s"] = True
+                    shared_monitoring_bool["no_progress_5s"] = True
 
             elif autocorrect_position_y_neg.is_set():
                 print("[AUTO-Y] Y drift trigger fired. Pausing flight.")
-                shared_monitoring_bool["no_progress_2s"] = False
-                shared_monitoring_bool["no_progress_5s"] = False
+                with monitoring_bool_lock:
+                    shared_monitoring_bool["no_progress_2s"] = False
+                    shared_monitoring_bool["no_progress_5s"] = False
                 mc.stop()
                 time.sleep(2)
                 with position_lock: dmy = shared_position["dmy"]
@@ -504,11 +532,15 @@ def combined_flight(scf, position_lock, shared_position, waypoint_lock, shared_w
                 if _failsafe_land_if_needed():
                     return
                 mc.start_linear_motion(0.2, 0.0, 0.0)
+                with monitoring_bool_lock:
+                    shared_monitoring_bool["no_progress_2s"] = True
+                    shared_monitoring_bool["no_progress_5s"] = True
 
             elif autocorrect_position_y_pos.is_set():
                 print("[AUTO-Y] Y drift trigger fired. Pausing flight.")
-                shared_monitoring_bool["no_progress_2s"] = False
-                shared_monitoring_bool["no_progress_5s"] = False
+                with monitoring_bool_lock:
+                    shared_monitoring_bool["no_progress_2s"] = False
+                    shared_monitoring_bool["no_progress_5s"] = False
                 mc.stop()
                 time.sleep(2)
                 with position_lock:
@@ -522,6 +554,9 @@ def combined_flight(scf, position_lock, shared_position, waypoint_lock, shared_w
                 if _failsafe_land_if_needed():
                     return
                 mc.start_linear_motion(0.2, 0.0, 0.0)
+                with monitoring_bool_lock:
+                    shared_monitoring_bool["no_progress_2s"] = True
+                    shared_monitoring_bool["no_progress_5s"] = True
 
             with position_lock: my = shared_position["my"]
             if my >= 1.18:
@@ -533,9 +568,10 @@ def combined_flight(scf, position_lock, shared_position, waypoint_lock, shared_w
         mx_right_ready.set()
         mc.stop()
 
-        shared_monitoring_bool["no_progress_2s"] = False
-        shared_monitoring_bool["no_progress_5s"] = False
-        shared_monitoring_bool["reached_waypoint"] = True
+        with monitoring_bool_lock:
+            shared_monitoring_bool["no_progress_2s"] = False
+            shared_monitoring_bool["no_progress_5s"] = False
+            shared_monitoring_bool["reached_waypoint"] = True
 
         time_end = time.time() + 2
 
@@ -614,27 +650,45 @@ def combined_flight(scf, position_lock, shared_position, waypoint_lock, shared_w
             time.sleep(0.01)
 
         # ---------------- SEGMENT 2 ----------------
-        shared_waypoint["wx"] = 1.2
-        shared_waypoint["wy"] = 1.2
-        shared_waypoint["wz"] = 1.5
+        print("Beginning segment 2 traversal.")
+        
+        if no_progress_2s.is_set():
+            np2 = "SET"
+        else:
+            np2 = "CLEAR"
+        if no_progress_5s.is_set():
+            np5 = "SET"
+        else: 
+            np5= "CLEAR"
 
-        shared_monitoring_bool["no_progress_2s"] = True
-        shared_monitoring_bool["no_progress_5s"] = True
-        shared_monitoring_bool["reached_waypoint"] = False
+        print("2 Second Check: {}, 5 Second Check: {}".format(np2, np5))
 
         mc.start_linear_motion(0.0, -0.2, 0.0)
+
+        with waypoint_lock:
+            shared_waypoint["wx"] = 1.2
+            shared_waypoint["wy"] = 1.2
+            shared_waypoint["wz"] = 1.5
+
+        with monitoring_bool_lock:
+            shared_monitoring_bool["no_progress_2s"] = True
+            shared_monitoring_bool["no_progress_5s"] = True
+            shared_monitoring_bool["reached_waypoint"] = False
+
         autocorrect_position_x_neg.clear()
         autocorrect_position_x_pos.clear()
         autocorrect_position_y_neg.clear()
         autocorrect_position_y_pos.clear()
+
         while True:
             if _failsafe_land_if_needed():
                 return
 
             if autocorrect_position_x_neg.is_set():
                 print("[AUTO-X] X drift trigger fired. Pausing flight.")
-                shared_monitoring_bool["no_progress_2s"] = False
-                shared_monitoring_bool["no_progress_5s"] = False
+                with monitoring_bool_lock:
+                    shared_monitoring_bool["no_progress_2s"] = False
+                    shared_monitoring_bool["no_progress_5s"] = False
                 mc.stop()
                 time.sleep(2)
                 with position_lock:
@@ -648,11 +702,15 @@ def combined_flight(scf, position_lock, shared_position, waypoint_lock, shared_w
                 if _failsafe_land_if_needed():
                     return
                 mc.start_linear_motion(0.0, -0.2, 0.0)
+                with monitoring_bool_lock:
+                    shared_monitoring_bool["no_progress_2s"] = True
+                    shared_monitoring_bool["no_progress_5s"] = True
 
             elif autocorrect_position_x_pos.is_set():
                 print("[AUTO-X] X drift trigger fired. Pausing flight.")
-                shared_monitoring_bool["no_progress_2s"] = False
-                shared_monitoring_bool["no_progress_5s"] = False
+                with monitoring_bool_lock:
+                    shared_monitoring_bool["no_progress_2s"] = False
+                    shared_monitoring_bool["no_progress_5s"] = False
                 mc.stop()
                 time.sleep(2)
                 with position_lock:
@@ -666,11 +724,15 @@ def combined_flight(scf, position_lock, shared_position, waypoint_lock, shared_w
                 if _failsafe_land_if_needed():
                     return
                 mc.start_linear_motion(0.0, -0.2, 0.0)
+                with monitoring_bool_lock:
+                    shared_monitoring_bool["no_progress_2s"] = True
+                    shared_monitoring_bool["no_progress_5s"] = True
 
             elif autocorrect_position_y_neg.is_set():
                 print("[AUTO-Y] Y drift trigger fired. Pausing flight.")
-                shared_monitoring_bool["no_progress_2s"] = False
-                shared_monitoring_bool["no_progress_5s"] = False
+                with monitoring_bool_lock:
+                    shared_monitoring_bool["no_progress_2s"] = False
+                    shared_monitoring_bool["no_progress_5s"] = False
                 mc.stop()
                 time.sleep(2)
                 with position_lock:
@@ -684,11 +746,15 @@ def combined_flight(scf, position_lock, shared_position, waypoint_lock, shared_w
                 if _failsafe_land_if_needed():
                     return
                 mc.start_linear_motion(0.0, -0.2, 0.0)
+                with monitoring_bool_lock:
+                    shared_monitoring_bool["no_progress_2s"] = True
+                    shared_monitoring_bool["no_progress_5s"] = True
 
             elif autocorrect_position_y_pos.is_set():
                 print("[AUTO-Y] Y drift trigger fired. Pausing flight.")
-                shared_monitoring_bool["no_progress_2s"] = False
-                shared_monitoring_bool["no_progress_5s"] = False
+                with monitoring_bool_lock:
+                    shared_monitoring_bool["no_progress_2s"] = False
+                    shared_monitoring_bool["no_progress_5s"] = False
                 mc.stop()
                 time.sleep(2)
                 with position_lock:
@@ -702,6 +768,9 @@ def combined_flight(scf, position_lock, shared_position, waypoint_lock, shared_w
                 if _failsafe_land_if_needed():
                     return
                 mc.start_linear_motion(0.0, -0.2, 0.0)
+                with monitoring_bool_lock:
+                    shared_monitoring_bool["no_progress_2s"] = True
+                    shared_monitoring_bool["no_progress_5s"] = True
 
             with position_lock: mx = shared_position["mx"]
             if mx >= 1.18:
@@ -713,9 +782,10 @@ def combined_flight(scf, position_lock, shared_position, waypoint_lock, shared_w
         my_back_ready.set()
         mc.stop()
 
-        shared_monitoring_bool["no_progress_2s"] = False
-        shared_monitoring_bool["no_progress_5s"] = False
-        shared_monitoring_bool["reached_waypoint"] = True
+        with monitoring_bool_lock:
+            shared_monitoring_bool["no_progress_2s"] = False
+            shared_monitoring_bool["no_progress_5s"] = False
+            shared_monitoring_bool["reached_waypoint"] = True
 
         time_end = time.time() + 2
 
@@ -795,27 +865,46 @@ def combined_flight(scf, position_lock, shared_position, waypoint_lock, shared_w
             time.sleep(0.01)
 
         # ---------------- SEGMENT 3 ----------------
-        shared_waypoint["wx"] = 1.2
-        shared_waypoint["wy"] = 0.0
-        shared_waypoint["wz"] = 1.5
+        print("Beginning segment 3 traversal.")
 
-        shared_monitoring_bool["no_progress_2s"] = True
-        shared_monitoring_bool["no_progress_5s"] = True
-        shared_monitoring_bool["reached_waypoint"] = False
+        if no_progress_2s.is_set():
+            np2 = "SET"
+        else:
+            np2 = "CLEAR"
+
+        if no_progress_5s.is_set():
+            np5 = "SET"
+        else: 
+            np5= "CLEAR"
+        
+        print("2 Second Check: {}, 5 Second Check: {}".format(np2, np5))
 
         mc.start_linear_motion(-0.2, 0.0, 0.0)
+
+        with waypoint_lock:
+            shared_waypoint["wx"] = 1.2
+            shared_waypoint["wy"] = 0.0
+            shared_waypoint["wz"] = 1.5
+
+        with monitoring_bool_lock:
+            shared_monitoring_bool["no_progress_2s"] = True
+            shared_monitoring_bool["no_progress_5s"] = True
+            shared_monitoring_bool["reached_waypoint"] = False
+
         autocorrect_position_x_neg.clear()
         autocorrect_position_x_pos.clear()
         autocorrect_position_y_neg.clear()
         autocorrect_position_y_pos.clear()
+
         while True:
             if _failsafe_land_if_needed():
                 return
 
             if autocorrect_position_x_neg.is_set():
                 print("[AUTO-X] X drift trigger fired. Pausing flight.")
-                shared_monitoring_bool["no_progress_2s"] = False
-                shared_monitoring_bool["no_progress_5s"] = False
+                with monitoring_bool_lock:
+                    shared_monitoring_bool["no_progress_2s"] = False
+                    shared_monitoring_bool["no_progress_5s"] = False
                 mc.stop()
                 time.sleep(2)
                 with position_lock:
@@ -829,11 +918,15 @@ def combined_flight(scf, position_lock, shared_position, waypoint_lock, shared_w
                 if _failsafe_land_if_needed():
                     return
                 mc.start_linear_motion(-0.2, 0.0, 0.0)
+                with monitoring_bool_lock:
+                    shared_monitoring_bool["no_progress_2s"] = True
+                    shared_monitoring_bool["no_progress_5s"] = True
 
             elif autocorrect_position_x_pos.is_set():
                 print("[AUTO-X] X drift trigger fired. Pausing flight.")
-                shared_monitoring_bool["no_progress_2s"] = False
-                shared_monitoring_bool["no_progress_5s"] = False
+                with monitoring_bool_lock:
+                    shared_monitoring_bool["no_progress_2s"] = False
+                    shared_monitoring_bool["no_progress_5s"] = False
                 mc.stop()
                 time.sleep(2)
                 with position_lock:
@@ -847,11 +940,15 @@ def combined_flight(scf, position_lock, shared_position, waypoint_lock, shared_w
                 if _failsafe_land_if_needed():
                     return
                 mc.start_linear_motion(-0.2, 0.0, 0.0)
+                with monitoring_bool_lock:
+                    shared_monitoring_bool["no_progress_2s"] = True
+                    shared_monitoring_bool["no_progress_5s"] = True
 
             elif autocorrect_position_y_neg.is_set():
                 print("[AUTO-Y] Y drift trigger fired. Pausing flight.")
-                shared_monitoring_bool["no_progress_2s"] = False
-                shared_monitoring_bool["no_progress_5s"] = False
+                with monitoring_bool_lock:
+                    shared_monitoring_bool["no_progress_2s"] = False
+                    shared_monitoring_bool["no_progress_5s"] = False
                 mc.stop()
                 time.sleep(2)
                 with position_lock:
@@ -865,11 +962,15 @@ def combined_flight(scf, position_lock, shared_position, waypoint_lock, shared_w
                 if _failsafe_land_if_needed():
                     return
                 mc.start_linear_motion(-0.2, 0.0, 0.0)
+                with monitoring_bool_lock:
+                    shared_monitoring_bool["no_progress_2s"] = True
+                    shared_monitoring_bool["no_progress_5s"] = True
 
             elif autocorrect_position_y_pos.is_set():
                 print("[AUTO-Y] Y drift trigger fired. Pausing flight.")
-                shared_monitoring_bool["no_progress_2s"] = False
-                shared_monitoring_bool["no_progress_5s"] = False
+                with monitoring_bool_lock:
+                    shared_monitoring_bool["no_progress_2s"] = False
+                    shared_monitoring_bool["no_progress_5s"] = False
                 mc.stop()
                 time.sleep(2)
                 with position_lock: dmy = shared_position["dmy"]
@@ -882,6 +983,9 @@ def combined_flight(scf, position_lock, shared_position, waypoint_lock, shared_w
                 if _failsafe_land_if_needed():
                     return
                 mc.start_linear_motion(-0.2, 0.0, 0.0)
+                with monitoring_bool_lock:
+                    shared_monitoring_bool["no_progress_2s"] = True
+                    shared_monitoring_bool["no_progress_5s"] = True
 
             with position_lock: my = shared_position["my"]
             if my <= 0.02:
@@ -893,9 +997,10 @@ def combined_flight(scf, position_lock, shared_position, waypoint_lock, shared_w
         mx_left_ready.set()
         mc.stop()
 
-        shared_monitoring_bool["no_progress_2s"] = False
-        shared_monitoring_bool["no_progress_5s"] = False
-        shared_monitoring_bool["reached_waypoint"] = True
+        with monitoring_bool_lock:
+            shared_monitoring_bool["no_progress_2s"] = False
+            shared_monitoring_bool["no_progress_5s"] = False
+            shared_monitoring_bool["reached_waypoint"] = True
 
         time_end = time.time() + 2
 
@@ -974,27 +1079,45 @@ def combined_flight(scf, position_lock, shared_position, waypoint_lock, shared_w
             time.sleep(0.01)
 
         # ---------------- SEGMENT 4 ----------------
-        shared_waypoint["wx"] = 0.0
-        shared_waypoint["wy"] = 0.0
-        shared_waypoint["wz"] = 1.5
+        print("Beginning segment 4 traversal.")
 
-        shared_monitoring_bool["no_progress_2s"] = True
-        shared_monitoring_bool["no_progress_5s"] = True
-        shared_monitoring_bool["reached_waypoint"] = False
+        if no_progress_2s.is_set():
+            np2 = "SET"
+        else:
+            np2 = "CLEAR"
+
+        if no_progress_5s.is_set():
+            np5 = "SET"
+        else:
+            np5= "CLEAR"
+        print("2 Second Check: {}, 5 Second Check: {}".format(np2, np5))
 
         mc.start_linear_motion(0.0, 0.2, 0.0)
+
+        with waypoint_lock:
+            shared_waypoint["wx"] = 0.0
+            shared_waypoint["wy"] = 0.0
+            shared_waypoint["wz"] = 1.5
+
+        with monitoring_bool_lock:
+            shared_monitoring_bool["no_progress_2s"] = True
+            shared_monitoring_bool["no_progress_5s"] = True
+            shared_monitoring_bool["reached_waypoint"] = False
+
         autocorrect_position_x_neg.clear()
         autocorrect_position_x_pos.clear()
         autocorrect_position_y_neg.clear()
         autocorrect_position_y_pos.clear()
+
         while True:
             if _failsafe_land_if_needed():
                 return
 
             if autocorrect_position_x_neg.is_set():
                 print("[AUTO-X] X drift trigger fired. Pausing flight.")
-                shared_monitoring_bool["no_progress_2s"] = False
-                shared_monitoring_bool["no_progress_5s"] = False
+                with monitoring_bool_lock:
+                    shared_monitoring_bool["no_progress_2s"] = False
+                    shared_monitoring_bool["no_progress_5s"] = False
                 mc.stop()
                 time.sleep(2)
                 with position_lock:
@@ -1008,11 +1131,15 @@ def combined_flight(scf, position_lock, shared_position, waypoint_lock, shared_w
                 if _failsafe_land_if_needed():
                     return
                 mc.start_linear_motion(0.0, 0.2, 0.0)
+                with monitoring_bool_lock:
+                    shared_monitoring_bool["no_progress_2s"] = True
+                    shared_monitoring_bool["no_progress_5s"] = True
 
             elif autocorrect_position_x_pos.is_set():
                 print("[AUTO-X] X drift trigger fired. Pausing flight.")
-                shared_monitoring_bool["no_progress_2s"] = False
-                shared_monitoring_bool["no_progress_5s"] = False
+                with monitoring_bool_lock:
+                    shared_monitoring_bool["no_progress_2s"] = False
+                    shared_monitoring_bool["no_progress_5s"] = False
                 mc.stop(); time.sleep(2)
                 with position_lock:
                     dmx = shared_position["dmx"]
@@ -1025,11 +1152,15 @@ def combined_flight(scf, position_lock, shared_position, waypoint_lock, shared_w
                 if _failsafe_land_if_needed():
                     return
                 mc.start_linear_motion(0.0, 0.2, 0.0)
+                with monitoring_bool_lock:
+                    shared_monitoring_bool["no_progress_2s"] = True
+                    shared_monitoring_bool["no_progress_5s"] = True
 
             elif autocorrect_position_y_neg.is_set():
                 print("[AUTO-Y] Y drift trigger fired. Pausing flight.")
-                shared_monitoring_bool["no_progress_2s"] = False
-                shared_monitoring_bool["no_progress_5s"] = False
+                with monitoring_bool_lock:
+                    shared_monitoring_bool["no_progress_2s"] = False
+                    shared_monitoring_bool["no_progress_5s"] = False
                 mc.stop()
                 time.sleep(2)
                 with position_lock:
@@ -1043,11 +1174,15 @@ def combined_flight(scf, position_lock, shared_position, waypoint_lock, shared_w
                 if _failsafe_land_if_needed():
                     return
                 mc.start_linear_motion(0.0, 0.2, 0.0)
+                with monitoring_bool_lock:
+                    shared_monitoring_bool["no_progress_2s"] = True
+                    shared_monitoring_bool["no_progress_5s"] = True
 
             elif autocorrect_position_y_pos.is_set():
                 print("[AUTO-Y] Y drift trigger fired. Pausing flight.")
-                shared_monitoring_bool["no_progress_2s"] = False
-                shared_monitoring_bool["no_progress_5s"] = False
+                with monitoring_bool_lock:
+                    shared_monitoring_bool["no_progress_2s"] = False
+                    shared_monitoring_bool["no_progress_5s"] = False
                 mc.stop()
                 time.sleep(2)
                 with position_lock:
@@ -1061,6 +1196,8 @@ def combined_flight(scf, position_lock, shared_position, waypoint_lock, shared_w
                 if _failsafe_land_if_needed():
                     return
                 mc.start_linear_motion(0.0, 0.2, 0.0)
+                with monitoring_bool_lock:
+                    shared_monitoring_bool["no_progress_2s"] = True
 
             with position_lock:
                 mx = shared_position["mx"]
@@ -1072,9 +1209,10 @@ def combined_flight(scf, position_lock, shared_position, waypoint_lock, shared_w
 
         takeoff_ended.set()
 
-        shared_monitoring_bool["no_progress_2s"] = False
-        shared_monitoring_bool["no_progress_5s"] = False
-        shared_monitoring_bool["reached_waypoint"] = True
+        with monitoring_bool_lock:
+            shared_monitoring_bool["no_progress_2s"] = False
+            shared_monitoring_bool["no_progress_5s"] = False
+            shared_monitoring_bool["reached_waypoint"] = True
 
         mc.stop()
 
@@ -1677,6 +1815,7 @@ def drone_logging_position_multi_ranger(
     position_lock, shared_position, waypoint_lock, shared_waypoint,
     monitoring_bool_lock, shared_monitoring_bool
 ):
+    
     takeoff_started.wait()
 
     # Offset if using square-from-corner flight
@@ -1694,7 +1833,7 @@ def drone_logging_position_multi_ranger(
     # --- Arming/Disarming state ---
     monitor_armed = False         # true only while traversing a leg
     t0_ms = None                  # spec time origin for the current leg
-    last_waypoint = None          # to detect waypoint changes
+    last_waypoint = (0.0, 0.0, 0.0)          # to detect waypoint changes
 
     with SyncLogger(scf, log_multi_ranger) as logger:
         time.sleep(2)
@@ -1765,29 +1904,33 @@ def drone_logging_position_multi_ranger(
 
             # --- Detect waypoint change (new leg target) ---
             wp_tuple = (wx, wy, wz)
-            waypoint_changed = (last_waypoint is None) or (wp_tuple != last_waypoint)
+            waypoint_changed = (wp_tuple != last_waypoint)
+            last_waypoint = wp_tuple
 
             # --- Disarm while at waypoint: halt spec analysis & clear failsafe flags ---
             if reached_wp:
-                if monitor_armed:
-                    print("[MONITOR] Reached waypoint -> disarming spec analysis.")
                 monitor_armed = False
+                print("[MONITOR] Reached waypoint -> disarming spec analysis.")
                 # keep failsafe flags idle during dwell
-                if no_progress_2s.is_set(): no_progress_2s.clear()
-                if no_progress_5s.is_set(): no_progress_5s.clear()
+                if no_progress_2s.is_set():
+                    no_progress_2s.clear()
+                if no_progress_5s.is_set():
+                    no_progress_5s.clear()
 
             # --- Arm only on leg start: need start_monitoring signal AND new waypoint ---
-            if (not monitor_armed) and start_monitoring.is_set() and waypoint_changed and (not reached_wp):
+            if start_monitoring.is_set() and not reached_wp and enable_np_2s and enable_np_5s and waypoint_changed:
+                monitor_armed = True
                 print("[MONITOR] New leg detected -> arming spec, resetting monitor/time.")
                 global _MON
                 _MON = mymonitor.PyMonitor()   # reset all RTLola windows/state
                 t0_ms = timestamp              # start spec time at 0 now
-                monitor_armed = True
                 reached_waypoint_evt.clear()
                 last_waypoint = wp_tuple       # remember which leg we’re on
                 # ensure clean failsafe flags at arm
-                if no_progress_2s.is_set(): no_progress_2s.clear()
-                if no_progress_5s.is_set(): no_progress_5s.clear()
+                if no_progress_2s.is_set():
+                    no_progress_2s.clear()
+                if no_progress_5s.is_set():
+                    no_progress_5s.clear()
 
             # --- Call RTLola only when armed (i.e., traversing a leg) ---
             verdicts = []
@@ -1835,12 +1978,16 @@ def drone_logging_position_multi_ranger(
                 if reached_wp is True:
                     # Flight thread should also set shared_monitoring_bool["reached_waypoint"]=True
                     reached_waypoint_evt.set()
-                    if no_progress_2s.is_set(): no_progress_2s.clear()
-                    if no_progress_5s.is_set(): no_progress_5s.clear()
+                    if no_progress_2s.is_set():
+                        no_progress_2s.clear()
+                    if no_progress_5s.is_set():
+                        no_progress_5s.clear()
             else:
                 # Disarmed: keep failsafe flags idle
-                if no_progress_2s.is_set(): no_progress_2s.clear()
-                if no_progress_5s.is_set(): no_progress_5s.clear()
+                if no_progress_2s.is_set():
+                    no_progress_2s.clear()
+                if no_progress_5s.is_set():
+                    no_progress_5s.clear()
 
             def get_val_bool(name) -> int:
                 v = vd.get(name)
@@ -1921,7 +2068,7 @@ if __name__ == '__main__':
    cflib.crtp.init_drivers()
 
 
-   run_id = "run3"
+   run_id = "run5"
 
 
    log_dict_state = {}
