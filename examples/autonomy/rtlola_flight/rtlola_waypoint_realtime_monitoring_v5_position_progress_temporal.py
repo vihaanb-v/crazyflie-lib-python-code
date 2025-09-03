@@ -1833,7 +1833,7 @@ def drone_logging_position_multi_ranger(
     # --- Arming/Disarming state ---
     monitor_armed = False         # true only while traversing a leg
     t0_ms = None                  # spec time origin for the current leg
-    last_waypoint = (0.0, 0.0, 0.0)          # to detect waypoint changes
+    last_waypoint = None          # to detect waypoint changes
 
     with SyncLogger(scf, log_multi_ranger) as logger:
         time.sleep(2)
@@ -1904,8 +1904,7 @@ def drone_logging_position_multi_ranger(
 
             # --- Detect waypoint change (new leg target) ---
             wp_tuple = (wx, wy, wz)
-            waypoint_changed = (wp_tuple != last_waypoint)
-            last_waypoint = wp_tuple
+            waypoint_changed = (last_waypoint != None) and (wp_tuple != last_waypoint)
 
             # --- Disarm while at waypoint: halt spec analysis & clear failsafe flags ---
             if reached_wp:
